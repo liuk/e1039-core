@@ -79,7 +79,7 @@ else # 'all' or 'resume'
     simulation/g4eval
     generators/E906LegacyGen
     packages/evt_filter
-    packages/dptrigger
+    packages/trigger
     #packages/db2g4
     packages/reco/interface
     packages/reco/SQGenFit
