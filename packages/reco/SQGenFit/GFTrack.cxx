@@ -26,6 +26,7 @@ GFTrack::GFTrack(): _track(nullptr), _trkrep(nullptr), _propState(nullptr), _vir
 GFTrack::~GFTrack()
 {
   if(_track != nullptr) delete _track;
+  if(_trkcand != nullptr) delete _trkcand;
 }
 
 void GFTrack::setVerbosity(unsigned int v)
@@ -202,9 +203,9 @@ bool GFTrack::setInitialStateForExtrap(const int startPtID)
   return true;
 }
 
-void GFTrack::setTracklet(Tracklet& tracklet, double z_reference, bool wildseedcov)
+bool GFTrack::setTracklet(Tracklet& tracklet, double z_reference, bool wildseedcov)
 {
-  _trkcand = &tracklet;
+  _trkcand = tracklet.Clone();
   _pdg = tracklet.getCharge() > 0 ? -13 : 13;
   _trkrep = new genfit::RKTrackRep(_pdg);
 
@@ -246,7 +247,21 @@ void GFTrack::setTracklet(Tracklet& tracklet, double z_reference, bool wildseedc
   std::sort(_measurements.begin(), _measurements.end(), [](GFMeasurement* a, GFMeasurement* b) { return (a->getZ() < b->getZ()); });
 
   addMeasurements(_measurements);
-  checkConsistency();
+  return checkConsistency();
+}
+
+bool GFTrack::checkConsistency()
+{
+  try
+  {
+    _track->checkConsistency();
+    return true;
+  }
+  catch(genfit::Exception& e)
+  {
+    std::cerr << __FILE__ << " " << __LINE__ << ": GFTrack creation failed " << e.what() << std::endl;
+    return false;
+  }
 }
 
 void GFTrack::postFitUpdate(bool updateMeasurements)

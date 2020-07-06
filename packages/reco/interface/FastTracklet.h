@@ -179,6 +179,9 @@ public:
     //Add dummy hits
     void addDummyHits();
 
+    //Add hit
+    void addHit(SignedHit hit);
+
     //Momentum estimation using back partial
     double getMomentum() const;
 

@@ -48,7 +48,6 @@ SignedHit::SignedHit() : sign(0)
 
 SignedHit::SignedHit(int detectorID) : sign(0)
 {
-    hit.index = -1;
     hit.detectorID = detectorID;
 }
 
@@ -541,19 +540,37 @@ void Tracklet::updateNHits()
     {
         if(iter->hit.index < 0) continue;
 
-        int idx = p_geomSvc->getPlaneType(iter->hit.detectorID) - 1;
-        if(idx == 0)
+        int planeTy = p_geomSvc->getPlaneType(iter->hit.detectorID);
+        if(planeTy == 1)
         {
             ++nXHits;
         }
-        else if(idx == 1)
+        else if(planeTy == 2)
         {
             ++nUHits;
         }
-        else
+        else if(planeTy == 3)
         {
             ++nVHits;
         }
+    }
+}
+
+void Tracklet::addHit(SignedHit hit)
+{
+    hits.push_front(hit);
+    int planeTy = p_geomSvc->getPlaneType(hit.hit.detectorID);
+    if(planeTy == 1)
+    {
+        ++nXHits;
+    }
+    else if(planeTy == 2)
+    {
+        ++nUHits;
+    }
+    else if(planeTy == 3)
+    {
+        ++nVHits;
     }
 }
 
@@ -930,10 +947,28 @@ double Tracklet::calcChisq()
             //residual[index] = p - p_geomSvc->getInterception(detectorID, tx_st1, ty, x0_st1, y0);
             residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx_st1, ty, x0_st1, y0);
         }
-        else
+        else if(detectorID <= nChamberPlanes)
         {
             //residual[index] = p - p_geomSvc->getInterception(detectorID, tx, ty, x0, y0);
             residual[index] = iter->sign*fabs(iter->hit.driftDistance) - p_geomSvc->getDCA(detectorID, iter->hit.elementID, tx, ty, x0, y0);
+        }
+        else if(detectorID > nChamberPlanes+nHodoPlanes+nPropPlanes)
+        {
+            //TODO this is a VERY ugly hack to include DP hodos, we are using the unused slots from D1 to fill the residual for DP
+            index = (detectorID - nChamberPlanes - nHodoPlanes - nPropPlanes)/4 + 6;
+            if(index == 7)
+            {
+                residual[index] = iter->hit.pos - p_geomSvc->getInterception(detectorID, tx_st1, ty, x0_st1, y0);
+            }
+            else if(index == 8)
+            {
+                residual[index] = iter->hit.pos - p_geomSvc->getInterception(detectorID, tx, ty, x0, y0);
+            }
+        }
+        else //we should never reach this point
+        {
+            std::cerr << __FILE__ << " " << __LINE__ << ": something wrong with hit defintion inside Tracklets." << std::endl;
+            continue;
         }
 
         chisq += (residual[index]*residual[index]/sigma/sigma);

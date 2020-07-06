@@ -25,7 +25,7 @@ public:
   ~GFTrack();
 
   void setVerbosity(unsigned int v);
-  void setTracklet(Tracklet& tracklet, double z_reference = 590., bool wildseedcov = false);
+  bool setTracklet(Tracklet& tracklet, double z_reference = 590., bool wildseedcov = false);
   void addMeasurements(std::vector<GFMeasurement*>& measurements);
   void addMeasurement(GFMeasurement* measurement);
 
@@ -43,7 +43,7 @@ public:
   void getExtrapPosMomCov(TVector3& pos, TVector3& mom, TMatrixDSym& cov) { _propState->getPosMomCov(pos, mom, cov); }
   void getExtrapPosMom(TVector3& pos, TVector3& mom) { _propState->getPosMom(pos, mom); }
 
-  void checkConsistency()  { _track->checkConsistency(); }
+  bool checkConsistency();
 
   void postFitUpdate(bool updateMeasurements = true);
   SRecTrack getSRecTrack();
