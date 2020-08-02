@@ -289,7 +289,18 @@ bool GFTrack::setInitialStateForExtrap(const int startPtID)
   return true;
 }
 
-double GFTrack::swimToVertex(double z, TVector3* pos, TVector3* mom, TMatrixDSym* cov)
+void GFTrack::getExtrapPosMomCov(TVector3* pos, TVector3* mom, TMatrixDSym* cov)
+{
+  if(pos != nullptr && mom != nullptr)
+  {
+    if(cov != nullptr)
+      _propState->getPosMomCov(*pos, *mom, *cov);
+    else
+      _propState->getPosMom(*pos, *mom);
+  }
+}
+
+double GFTrack::swimToVertex(double z, TVector3* pos, TVector3* mom, TMatrixDSym* cov, bool biased)
 {
   //Basic constants
   TVector3 pU(1., 0., 0.);
@@ -307,16 +318,10 @@ double GFTrack::swimToVertex(double z, TVector3* pos, TVector3* mom, TMatrixDSym
   {
     double len = extrapolateToPlane(pO, pU, pV);
     if(fabs(len) > 6000.) throw len;
+    if(!biased) getExtrapPosMomCov(pos, mom, cov);
 
     chi2 = updatePropState(beamCenter, beamCov);
-    if(cov != nullptr)
-    {
-      getExtrapPosMomCov(*pos, *mom, *cov);
-    }
-    else if(mom != nullptr)
-    {
-      getExtrapPosMom(*pos, *mom);
-    }
+    if(biased)  getExtrapPosMomCov(pos, mom, cov);
   }
   catch(genfit::Exception& e)
   {
@@ -421,24 +426,21 @@ SRecTrack GFTrack::getSRecTrack()
   //Swim to various places and save info
   strack.swimToVertex(nullptr, nullptr, false);
 
-  //Hypothesis test should be implemented here
-  TVector3 pO(0., 0., Z_UPSTREAM);
-  TVector3 pU(1., 0., 0.);
-  TVector3 pV(0., 1., 0.);
-  TVectorD beamCenter(2);
-  beamCenter[0] = X_BEAM; beamCenter[1] = Y_BEAM; 
-  TMatrixDSym beamCov(2);
-  beamCov.Zero();
-  beamCov(0, 0) = SIGX_BEAM*SIGX_BEAM; beamCov(1, 1) = SIGY_BEAM*SIGY_BEAM;
+  //Hypothesis test at different z locations
+  TVector3 pos, mom;
 
   //test Z_UPSTREAM
   strack.setChisqUpstream(swimToVertex(Z_UPSTREAM));
 
   //test Z_TARGET
-  strack.setChisqTarget(swimToVertex(Z_TARGET));
+  strack.setChisqTarget(swimToVertex(Z_TARGET, &pos, &mom, nullptr, false));
+  strack.setTargetPos(pos);
+  strack.setTargetMom(mom);
 
   //test Z_DUMP
-  strack.setChisqDump(swimToVertex(Z_DUMP));
+  strack.setChisqDump(swimToVertex(Z_DUMP, &pos, &mom, nullptr, false));
+  strack.setDumpPos(pos);
+  strack.setDumpMom(mom);
 
   /*
   //Find POCA to beamline -- it seems to be funky and mostly found some place way upstream or downstream
@@ -461,7 +463,9 @@ SRecTrack GFTrack::getSRecTrack()
   */
 
   //test Z_VERTEX
-  strack.setChisqVertex(swimToVertex(strack.getVertexPos().Z()));
+  strack.setChisqVertex(swimToVertex(strack.getVertexPos().Z(), &pos, &mom, nullptr, false));
+  strack.setVertexPos(pos);
+  strack.setVertexMom(mom);
 
   strack.setKalmanStatus(1);
   return strack;

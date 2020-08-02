@@ -42,10 +42,9 @@ public:
   double extrapolateToPlane(TVector3& pO, TVector3& pU, TVector3& pV, const int startPtID = 0);
   double extrapolateToPoint(TVector3& point, bool update = false, const int startPtID = 0);
   double updatePropState(const TVectorD& meas, const TMatrixDSym& V);
-  void getExtrapPosMomCov(TVector3& pos, TVector3& mom, TMatrixDSym& cov) { _propState->getPosMomCov(pos, mom, cov); }
-  void getExtrapPosMom(TVector3& pos, TVector3& mom) { _propState->getPosMom(pos, mom); }
-
-  double swimToVertex(double z, TVector3* pos = nullptr, TVector3* mom = nullptr, TMatrixDSym* cov = nullptr);
+  void getExtrapPosMomCov(TVector3* pos, TVector3* mom, TMatrixDSym* cov);
+  
+  double swimToVertex(double z, TVector3* pos = nullptr, TVector3* mom = nullptr, TMatrixDSym* cov = nullptr, bool biased = true);
 
   void checkConsistency()  { _track->checkConsistency(); }
 
