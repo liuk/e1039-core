@@ -614,7 +614,7 @@ double Tracklet::getMomProb() const
     return (index >= 0 && index < 40) ? (weights[index] < 1.E-5 ? 1.E-5 : weights[index]) : 1.E-5;
 }
 
-TVector3 Tracklet::getExpMomentum(double z)
+TVector3 Tracklet::getExpMomentum(double z) const
 {
     return (KMAG_ON && stationID >= nStations-1 && z < Z_KMAG_BEND - 1.) ? getMomentumSt1() : getMomentumSt3();
 }
@@ -667,7 +667,7 @@ double Tracklet::getExpPosErrorY(double z) const
     return err_y;
 }
 
-double Tracklet::getExpPositionW(int detectorID)
+double Tracklet::getExpPositionW(int detectorID) const
 {
     double z = p_geomSvc->getPlanePosition(detectorID);
 
@@ -755,7 +755,7 @@ int Tracklet::getCharge() const
 	return x0*KMAGSTR > tx ? 1 : -1;
 }
 
-void Tracklet::getXZInfoInSt1(double& tx_st1, double& x0_st1)
+void Tracklet::getXZInfoInSt1(double& tx_st1, double& x0_st1) const
 {
     if(KMAG_ON)
     {
@@ -769,7 +769,7 @@ void Tracklet::getXZInfoInSt1(double& tx_st1, double& x0_st1)
     }
 }
 
-void Tracklet::getXZErrorInSt1(double& err_tx_st1, double& err_x0_st1)
+void Tracklet::getXZErrorInSt1(double& err_tx_st1, double& err_x0_st1) const
 {
     if(KMAG_ON)
     {
@@ -1056,7 +1056,7 @@ SRecTrack Tracklet::getSRecTrack(bool hyptest)
     return strack;
 }
 
-TVector3 Tracklet::getMomentumSt1()
+TVector3 Tracklet::getMomentumSt1() const
 {
     double tx_st1, x0_st1;
     getXZInfoInSt1(tx_st1, x0_st1);
@@ -1065,7 +1065,7 @@ TVector3 Tracklet::getMomentumSt1()
     return TVector3(pz*tx_st1, pz*ty, pz);
 }
 
-TVector3 Tracklet::getMomentumSt3()
+TVector3 Tracklet::getMomentumSt3() const
 {
     double pz = 1./invP/sqrt(1. + tx*tx);
     return TVector3(pz*tx, pz*ty, pz);

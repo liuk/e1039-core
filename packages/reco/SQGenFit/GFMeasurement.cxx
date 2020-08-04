@@ -18,7 +18,11 @@
 namespace SQGenFit
 {
 
-GFMeasurement::GFMeasurement(const SignedHit& rawHit, bool en): _bfHit(rawHit)
+GFMeasurement::GFMeasurement(const SignedHit& rawHit, bool en): 
+  _bfHit(rawHit),
+  _proj(0.), 
+  _driftSign(0),
+  _track(nullptr)
 {
   GeomSvc* p_geomSvc = GeomSvc::instance();
 
@@ -52,9 +56,6 @@ GFMeasurement::GFMeasurement(const SignedHit& rawHit, bool en): _bfHit(rawHit)
   //Own data
   _z = p_geomSvc->getPlanePosition(detID);
   _enableInFit = _bfHit.hit.index < 0 ? false : en;
-  _proj = 0.;
-  _driftSign = 0;
-  _track = nullptr;
 }
 
 void GFMeasurement::setTrackPtr(GFTrack* trackPtr)

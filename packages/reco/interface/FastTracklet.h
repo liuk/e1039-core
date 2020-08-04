@@ -162,12 +162,12 @@ public:
     double getExpPosErrorX(double z) const;
     double getExpPositionY(double z) const;
     double getExpPosErrorY(double z) const;
-    double getExpPositionW(int detectorID);
+    double getExpPositionW(int detectorID) const;
 
     //Get momentum upstream/downstream
-    TVector3 getMomentumSt1();
-    TVector3 getMomentumSt3();
-    TVector3 getExpMomentum(double z);
+    TVector3 getMomentumSt1() const;
+    TVector3 getMomentumSt3() const;
+    TVector3 getExpMomentum(double z) const;
 
     //Get the i-th signed hit
     SignedHit getSignedHit(int index);
@@ -187,8 +187,8 @@ public:
     int getCharge() const;
 
     //Get the slope and intersection in station 1
-    void getXZInfoInSt1(double& tx_st1, double& x0_st1);
-    void getXZErrorInSt1(double& err_tx_st1, double& err_x0_st1);
+    void getXZInfoInSt1(double& tx_st1, double& x0_st1) const;
+    void getXZErrorInSt1(double& err_tx_st1, double& err_x0_st1) const;
 
     //For sorting tracklet list
     bool operator<(const Tracklet& elem) const;

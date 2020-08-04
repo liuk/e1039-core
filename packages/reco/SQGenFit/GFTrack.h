@@ -26,14 +26,28 @@ public:
   GFTrack(Tracklet& tracklet);
   ~GFTrack();
 
+  GFTrack* Clone() const;
+
   void setVerbosity(unsigned int v);
-  void setTracklet(Tracklet& tracklet, double z_reference = 590., bool wildseedcov = false);
+  void setTracklet(const Tracklet& tracklet, double z_reference = 590., bool wildseedcov = false);
   void addMeasurements(std::vector<GFMeasurement*>& measurements);
-  void addMeasurement(GFMeasurement* measurement);
+  void addMeasurement(SignedHit& hit);
+
+  //! id = -1 means insert hits after the last point, -2 means before the last point
+  //! id = 0 means before the first point, 1 means before the second point
+  void addMeasurement(GFMeasurement* measurement, const int id = -1);
+
+  // void addVertex(double zvtx);
+
+  //! remove all the fitted state, optionally update the seed
+  void reset(bool updateSeed = true);
+
+
+  void getProjection(int detID, double& x, double& y, double& w, double& dw);
 
   double getChi2();
   double getNDF();
-  int getCharge() { return _trkcand->getCharge(); };
+  int getCharge();
   int getNearestMeasurementID(GFMeasurement* meas);
 
   //The extrapolation is implemented for line, plane and point, but the update/filter is only implemeted 
@@ -45,8 +59,9 @@ public:
   void getExtrapPosMomCov(TVector3* pos, TVector3* mom, TMatrixDSym* cov);
   
   double swimToVertex(double z, TVector3* pos = nullptr, TVector3* mom = nullptr, TMatrixDSym* cov = nullptr, bool biased = true);
+  double getPOCA(SRecTrack* strack = nullptr); //needs to be called after extrapolateToXXX
 
-  void checkConsistency()  { _track->checkConsistency(); }
+  void checkConsistency();
 
   void postFitUpdate(bool updateMeasurements = true);
   SRecTrack getSRecTrack();
@@ -63,7 +78,7 @@ private:
   //interface with genfit operations
   genfit::AbsTrackRep* _trkrep; 
   genfit::Track* _track;
-  std::vector<GFMeasurement*> _measurements;
+  std::vector<GFMeasurement*> _measurements;   // --- TODO: should I make this a list instead?
 
   //container of the MSOP obtained from the SRecTrack
   std::vector<genfit::MeasuredStateOnPlane> _fitstates;

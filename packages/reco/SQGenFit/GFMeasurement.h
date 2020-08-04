@@ -26,9 +26,10 @@ public:
   bool isEnabled() { return _enableInFit; }
 
   void print(unsigned int debugLvl = 0);
+  
+private:
   void printHelper(double w, TVector3& pos, TVector3& mom, TString name = "none");
 
-private:
   SignedHit _bfHit;
   double _z;
   bool _enableInFit;
