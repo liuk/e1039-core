@@ -472,6 +472,35 @@ double GFTrack::getPOCA(SRecTrack* strack)
   return z_vtx;
 }
 
+double GFTrack::getDumpPathLen()
+{
+  std::vector<genfit::MatStep> mat;
+  try
+  {
+    mat = _trkrep->getSteps();
+  }
+  catch(...)
+  {
+    std::cerr << __FILE__ << " " << __LINE__ << ": Extrapolation cache is not available." << std::endl;
+    return 1.E6;
+  }
+
+  unsigned int nSteps = mat.size();
+  if(nSteps <= 1)
+  {
+    std::cerr << __FILE__ << " " << __LINE__ << ": Extrapolation cache size illegle " << nSteps << std::endl;
+    return 1.E6;
+  }
+
+  double ironLength = 0.;
+  for(unsigned int i = 1; i < nSteps; ++i)
+  {
+    if(fabs(mat[i].material_.Z - 26.) < 1.E-3) ironLength += fabs(mat[i].stepSize_);
+  }
+  
+  return ironLength;
+}
+
 void GFTrack::reset(bool updateSeed)
 {
   if(updateSeed) _track->udpateSeed(0, _trkrep, true);
@@ -586,6 +615,7 @@ SRecTrack GFTrack::getSRecTrack()
   //test Z_UPSTREAM and find POCA as rough vertex point
   strack.setChisqUpstream(swimToVertex(Z_UPSTREAM));
   double z_vtx = getPOCA(&strack);
+  strack.setDumpFacePos(TVector3(0., 0., getDumpPathLen()));
 
   //We then do the vertex hypothesis tests in order of z to maximize the use of cache
   TVector3 pos, mom;

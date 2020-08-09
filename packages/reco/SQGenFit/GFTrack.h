@@ -60,6 +60,7 @@ public:
   
   double swimToVertex(double z, TVector3* pos = nullptr, TVector3* mom = nullptr, TMatrixDSym* cov = nullptr, bool biased = true);
   double getPOCA(SRecTrack* strack = nullptr); //needs to be called after extrapolateToXXX
+  double getDumpPathLen();
 
   void checkConsistency();
 
