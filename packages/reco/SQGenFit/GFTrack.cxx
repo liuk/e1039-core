@@ -493,7 +493,7 @@ double GFTrack::getDumpPathLen()
   }
 
   double ironLength = 0.;
-  for(unsigned int i = 1; i < nSteps; ++i)
+  for(unsigned int i = 0; i < nSteps; ++i)
   {
     if(fabs(mat[i].material_.Z - 26.) < 1.E-3) ironLength += fabs(mat[i].stepSize_);
   }

@@ -42,7 +42,7 @@ public:
   //! remove all the fitted state, optionally update the seed
   void reset(bool updateSeed = true);
 
-
+  //! get the projected x/y and w/dw on the detector plane
   void getProjection(int detID, double& x, double& y, double& w, double& dw);
 
   double getChi2();
