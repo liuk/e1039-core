@@ -110,12 +110,37 @@ GFTrack::~GFTrack()
   if(_trkcand != nullptr) delete _trkcand;
 }
 
-GFTrack* GFTrack::Clone() const
+GFTrack* GFTrack::clone(bool clean) const
 {
   GFTrack* newTrack = new GFTrack();
-  if(_trkcand != nullptr) newTrack->setTracklet(*_trkcand);
+  if(clean) 
+  {
+    newTrack->setTracklet(*_trkcand);
+  }
+  else
+  {
+    newTrack->_track = new genfit::Track(*_track);
+    if(_trkcand != nullptr) newTrack->_trkcand = _trkcand->Clone();
+
+    newTrack->restoreFromGenFitTrack();
+  }
 
   return newTrack;
+}
+
+void GFTrack::restoreFromGenFitTrack()
+{
+  _trkrep = _track->getCardinalRep();
+  _pdg = _trkrep->getPDG();
+
+  unsigned int nHits = _track->getNumPoints();
+  for(unsigned int i = 0; i < nHits; ++i)
+  {
+    genfit::TrackPoint* tp = _track->getPoint(i);
+    GFMeasurement* meas = const_cast<GFMeasurement*>(dynamic_cast<GFMeasurement*>(tp->getRawMeasurement()));
+    meas->setTrackPtr(this);
+    _measurements.insert(meas);
+  }
 }
 
 void GFTrack::setVerbosity(unsigned int v)
@@ -123,7 +148,7 @@ void GFTrack::setVerbosity(unsigned int v)
   if(_trkrep != nullptr) _trkrep->setDebugLvl(v);
 }
 
-void GFTrack::addMeasurements(std::vector<GFMeasurement*>& measurements)
+void GFTrack::addMeasurements(HitList_t& measurements)
 {
   for(auto iter = measurements.begin(); iter != measurements.end(); ++iter)
   {
@@ -141,10 +166,42 @@ void GFTrack::addMeasurement(GFMeasurement* measurement, const int id)
   _track->insertPoint(tp, id);
 }
 
-void GFTrack::addMeasurement(SignedHit& hit)
+void GFTrack::addMeasurement(const SignedHit& hit, const int id)
 {
-  GFMeasurement* measurement = new GFMeasurement(hit);
-  addMeasurement(measurement);
+  if(_trkcand != nullptr) _trkcand->hits.push_front(hit);
+
+  GFMeasurement* meas = new GFMeasurement(hit);
+  addMeasurement(meas, id);
+}
+
+double GFTrack::testOneHitKalman(const SignedHit& hit)
+{
+  GeomSvc* p_geomSvc = GeomSvc::instance();
+  TVector3 ep1, ep2;
+  p_geomSvc->getEndPoints(hit.hit.detectorID, hit.hit.elementID, ep1, ep2);
+
+  double width = p_geomSvc->getCellWidth(hit.hit.detectorID);
+  TVectorD meas(1); meas[0] = 0.;
+  TMatrixDSym V(1); V[0][0] = width*width/12.;
+
+  double chi2 = -1.;
+  try
+  {
+    double len = extrapolateToLine(ep1, ep2);
+    if(fabs(len) > 6000.) throw len;
+
+    chi2 = updatePropState(meas, V);
+  }
+  catch(genfit::Exception& e)
+  {
+    return -1.;
+  }
+  catch(double len)
+  {
+    return -1.;
+  }
+
+  return chi2;
 }
 
 void GFTrack::getProjection(int detID, double& x, double& y, double& w, double& dw)
@@ -214,29 +271,10 @@ double GFTrack::getNDF()
   return -1.;
 }
 
-int GFTrack::getNearestMeasurementID(GFMeasurement* meas)
-{
-  double z = meas->getZ();
-  if(z < _measurements.front()->getZ())
-  {
-    return 0;
-  }
-  else if(z > _measurements.back()->getZ())
-  {
-    return _measurements.size() - 1;
-  }
-  else
-  {
-    auto iter = std::lower_bound(_measurements.begin(), _measurements.end(), meas, [](GFMeasurement* a, GFMeasurement* b) { return (a->getZ() < b->getZ()); });
-    int idx = std::distance(_measurements.begin(), iter);
-    return fabs(z - _measurements[idx]->getZ()) < fabs(z - _measurements[idx-1]->getZ()) ? idx : idx-1;
-  }
-}
-
 double GFTrack::extrapolateToLine(TVector3& endPoint1, TVector3& endPoint2, const int startPtID)
 {
-  TVector3 linePoint = (endPoint2 + endPoint1);
-  TVector3 lineDir = endPoint2 - endPoint1;
+  TVector3 linePoint = endPoint1;
+  TVector3 lineDir   = endPoint2 - endPoint1;
 
   if(!setInitialStateForExtrap(startPtID)) return -9999.;
 
@@ -280,7 +318,7 @@ double GFTrack::extrapolateToPlane(TVector3& pO, TVector3& pU, TVector3& pV, con
   return len;
 }
 
-double GFTrack::extrapolateToPoint(TVector3& point, bool update, const int startPtID)
+double GFTrack::extrapolateToPoint(TVector3& point, const int startPtID)
 {
   if(!setInitialStateForExtrap(startPtID)) return -9999.;
 
@@ -334,7 +372,7 @@ bool GFTrack::setInitialStateForExtrap(const int startPtID)
   genfit::AbsTrackRep* rep = _track->getCardinalRep();
   if(_track->getNumPoints() > 0)
   {
-    genfit::TrackPoint*   tp = _track->getPointWithMeasurementAndFitterInfo(startPtID, rep);
+    genfit::TrackPoint* tp = _track->getPointWithMeasurementAndFitterInfo(startPtID, rep);
     if(tp == nullptr) return false;
 
     genfit::KalmanFitterInfo* info = static_cast<genfit::KalmanFitterInfo*>(tp->getFitterInfo(rep));
@@ -514,7 +552,10 @@ void GFTrack::checkConsistency()
   if(tp != nullptr)
   {
     int fittedCharge = tp->getFitterInfo(_trkrep)->getFittedState().getCharge() > 0 ? 1 : -1;
-    if(fittedCharge != _trkcand->getCharge()) throw std::logic_error("fitted sign is different");
+    if(fittedCharge != _trkcand->getCharge())
+    {
+      std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! fitted sign is different " << fittedCharge << "  " << _trkcand->getCharge() << std::endl;
+    }
   }
 }
 
@@ -565,12 +606,11 @@ void GFTrack::setTracklet(const Tracklet& tracklet, double z_reference, bool wil
     if(iter->hit.index < 0) continue;
 
     GFMeasurement* meas = new GFMeasurement(*iter);
-    _measurements.push_back(meas);
+    _measurements.insert(meas);
   }
-  std::sort(_measurements.begin(), _measurements.end(), [](GFMeasurement* a, GFMeasurement* b) { return (a->getZ() < b->getZ()); });
 
   addMeasurements(_measurements);
-  checkConsistency();
+  //checkConsistency();
 }
 
 void GFTrack::postFitUpdate(bool updateMeasurements)
