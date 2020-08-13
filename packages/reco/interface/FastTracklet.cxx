@@ -117,7 +117,7 @@ SignedHit::SignedHit(Hit hit_input, int sign_input) : hit(hit_input), sign(sign_
 void SignedHit::identify(std::ostream& os) const 
 {
     if(sign > 0) os << "L - ";
-    if(sign > 0) os << "R - ";
+    if(sign < 0) os << "R - ";
     if(sign == 0) os << "U - ";
 
     os << hit.index << " " << hit.detectorID << "  " << hit.elementID << std::endl;
