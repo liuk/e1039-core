@@ -23,6 +23,7 @@ and then prop. tubes
 #include <vector>
 #include <string>
 #include <map>
+#include <unordered_map>
 
 #include <TVector3.h>
 #include <TVectorD.h>
@@ -322,11 +323,11 @@ private:
     std::map<int, int> map_detid_triggerlv;
 
     //Mapping to wire position
-    std::map<std::pair<int, int>, double> map_wirePosition;
+    std::unordered_map<int, double> map_wirePosition[nChamberPlanes+nHodoPlanes+nHodoPlanes+nDarkPhotonPlanes+1];
 
     //Mapping to wire end position - wire actually includes all detectors
-    std::map<std::pair<int, int>, TVectorD> map_endPoint1;  
-    std::map<std::pair<int, int>, TVectorD> map_endPoint2;
+    std::unordered_map<int, TVectorD> map_endPoint1[nChamberPlanes+nHodoPlanes+nHodoPlanes+nDarkPhotonPlanes+1];
+    std::unordered_map<int, TVectorD> map_endPoint2[nChamberPlanes+nHodoPlanes+nHodoPlanes+nDarkPhotonPlanes+1];
 
     //Pointer to the reco constants
     recoConsts* rc;
