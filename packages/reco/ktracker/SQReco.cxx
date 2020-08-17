@@ -40,7 +40,7 @@
 #include <boost/lexical_cast.hpp>
 
 #ifdef _DEBUG_ON
-#  define LogDebug(exp) std::cout << "DEBUG: " << __FUNCTION__ <<": "<< __LINE__ << ": " << exp << std::endl
+#  define LogDebug(exp) std::cout << "DEBUG: " << typeid(*this).name() << " " << __FUNCTION__ << " " << __LINE__ << " :: " << exp << std::endl
 #else
 #  define LogDebug(exp)
 #endif
@@ -50,6 +50,7 @@ SQReco::SQReco(const std::string& name):
   _input_type(SQReco::E1039),
   _fitter_type(SQReco::KFREF),
   _enable_eval(false),
+  _save_rawevent(false),
   _eval_file_name("eval.root"),
   _eval_tree(nullptr),
   _tracklets(nullptr),
@@ -545,6 +546,7 @@ int SQReco::InitEvalTree()
   _eval_tree = new TTree("eval", "eval");
   _eval_tree->Branch("eventID", &_event, "eventID/I");
   _eval_tree->Branch("tracklets", &_tracklets, 256000, 99);
+  if(_save_rawevent) _eval_tree->Branch("rawEvent",  &_rawEvent, 256000, 99);
   _tracklets->BypassStreamer();
 
   return 0;

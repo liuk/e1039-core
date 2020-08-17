@@ -644,7 +644,7 @@ bool SRawEvent::isFPGATriggered()
 void SRawEvent::print(std::ostream& os) const
 {
     os << "RunID: " << fRunID << ", EventID: " << fEventID << "===============" << std::endl;
-    for(Int_t i = 1; i <= nChamberPlanes; i++)
+    for(Int_t i = 1; i <= nChamberPlanes+nHodoPlanes; i++)
     {
         os << "Layer " << i << " has " << fNHits[i] << " hits." << std::endl;
     }

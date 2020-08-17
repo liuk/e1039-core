@@ -142,7 +142,6 @@ public:
     void sortHits() { hits.sort(); }
 
     //Update/get number of real hits
-    void updateNHits();
     int getNHits() const { return nXHits + nUHits + nVHits; }
 
     //Number of all hits (even excluded)
@@ -163,6 +162,7 @@ public:
     double getExpPositionY(double z) const;
     double getExpPosErrorY(double z) const;
     double getExpPositionW(int detectorID) const;
+    int    getExpElementID(int detectorID) const;
 
     //Get momentum upstream/downstream
     TVector3 getMomentumSt1() const;
@@ -174,6 +174,7 @@ public:
 
     //Kernal function to calculate chi square for minimizer
     double Eval(const double* par);
+    double Eval4(const double* par);
     double calcChisq();
 
     //Add dummy hits
@@ -213,9 +214,9 @@ public:
     int stationID;
 
     //Number of hits
-    int nXHits;
-    int nUHits;
-    int nVHits;
+    mutable int nXHits;
+    mutable int nUHits;
+    mutable int nVHits;
 
     //Chi square
     double chisq;

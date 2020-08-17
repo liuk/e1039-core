@@ -67,6 +67,7 @@ public:
 
   bool is_eval_enabled() const { return _enable_eval; }
   void set_enable_eval(bool enable) { _enable_eval = enable; }
+  void set_save_rawevent(bool enable) { _save_rawevent = enable; }
   bool is_eval_dst_enabled() const { return _enable_eval_dst; }
   void set_enable_eval_dst(bool enable) { _enable_eval_dst = enable; }
   void add_eval_list(int listID);
@@ -98,6 +99,7 @@ private:
   SQReco::FITTER_TYPE _fitter_type;
 
   bool _enable_eval;
+  bool _save_rawevent;
   TString _eval_file_name;
   TTree*  _eval_tree;
   TClonesArray* _tracklets;

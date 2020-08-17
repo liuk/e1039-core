@@ -56,20 +56,25 @@ public:
   //! remove all the fitted state, optionally update the seed
   void reset(bool updateSeed = true);
 
-  //! get the projected x/y and w/dw on the detector plane
+  //! get the projected elementID/x/y and w/dw on the detector plane
   void getProjection(int detID, double& x, double& y, double& w, double& dw);
 
-  //! get the track fit quality parameters
+  //! a fast linear extrapolation to get the projected hit elemenmtID, if fb = 0, use the first trackpoint as start, if fb = -1, use the last
+  int getProjectedElementID(int detID, int fb = 0);
+
+  //! quick access to the track fit quality parameters and results
   double getChi2();
   double getNDF();
+  double getQuality();
   int getCharge();
+  void getFittedPosMom(TVector3& pos, TVector3& mom);
 
   //! The extrapolation is implemented for line, plane and point, but the update/filter is only implemeted 
   //! for line and plane, user needs to be careful and pass correct measurement and cov to get sensible result
   double extrapolateToLine(TVector3& endPoint1, TVector3& endPoint2, const int startPtID = 0);
   double extrapolateToPlane(TVector3& pO, TVector3& pU, TVector3& pV, const int startPtID = 0);
   double extrapolateToPoint(TVector3& point, const int startPtID = 0);
-  void getExtrapPosMomCov(TVector3* pos, TVector3* mom, TMatrixDSym* cov);
+  void getExtrapPosMomCov(TVector3* pos, TVector3* mom, TMatrixDSym* cov = nullptr);
 
   //! perform one step of filter for the _propState, returns the chi2/ndf
   double updatePropState(const TVectorD& meas, const TMatrixDSym& V);
@@ -120,6 +125,8 @@ private:
   int _pdg;
 
 };
+
+typedef std::shared_ptr<GFTrack> GFTrackPtr;
 }
 
 #endif

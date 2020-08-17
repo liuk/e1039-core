@@ -227,6 +227,7 @@ public:
 
     ///Friend class which handles all kinds of hit list reduction
     friend class EventReducer;
+    friend class SRawEventSvc;
 
 public:
     //Trigger type

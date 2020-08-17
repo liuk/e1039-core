@@ -35,12 +35,15 @@ namespace
   static double SIGX_BEAM;
   static double SIGY_BEAM;
 
+  static GeomSvc* p_geomSvc;
+
   //initialize global variables
   void initGlobalVariables()
   {
     if(!inited) 
     {
       inited = true;
+      p_geomSvc = GeomSvc::instance();
 
       recoConsts* rc = recoConsts::instance();
       Z_TARGET   = rc->get_DoubleFlag("Z_TARGET");
@@ -171,12 +174,12 @@ void GFTrack::addMeasurement(const SignedHit& hit, const int id)
   if(_trkcand != nullptr) _trkcand->hits.push_front(hit);
 
   GFMeasurement* meas = new GFMeasurement(hit);
+  _measurements.insert(meas);
   addMeasurement(meas, id);
 }
 
 double GFTrack::testOneHitKalman(const SignedHit& hit)
 {
-  GeomSvc* p_geomSvc = GeomSvc::instance();
   TVector3 ep1, ep2;
   p_geomSvc->getEndPoints(hit.hit.detectorID, hit.hit.elementID, ep1, ep2);
 
@@ -211,7 +214,6 @@ void GFTrack::getProjection(int detID, double& x, double& y, double& w, double& 
   w = 1.E6;
   dw = -1.E6;
 
-  GeomSvc* p_geomSvc = GeomSvc::instance();
   double z  = p_geomSvc->getPlanePosition(detID);
   double rZ = p_geomSvc->getRotationInZ(detID);
 
@@ -247,6 +249,22 @@ void GFTrack::getProjection(int detID, double& x, double& y, double& w, double& 
   dw = sqrt(cov(0, 0));
 }
 
+int GFTrack::getProjectedElementID(int detID, int fb)  
+{
+  //TODO: maybe able to optimize by avoiding the setInitialStateForExtrap by directly getting the fitter info
+  // or add some cacheing machnism
+  if(!setInitialStateForExtrap(fb)) return -1;
+
+  TVector3 pos, mom;
+  getExtrapPosMomCov(&pos, &mom);
+
+  double tx = mom.Px()/mom.Pz();
+  double ty = mom.Py()/mom.Pz();
+  double w  = p_geomSvc->getInterception(detID, tx, ty, pos.X() - tx*pos.Z(), pos.Y() - ty*pos.Z());
+
+  return p_geomSvc->getExpElementID(detID, w);
+}
+
 double GFTrack::getChi2()
 {
   genfit::AbsTrackRep* rep = _track->getCardinalRep();
@@ -269,6 +287,23 @@ double GFTrack::getNDF()
   }
   
   return -1.;
+}
+
+double GFTrack::getQuality()
+{
+  genfit::AbsTrackRep* rep = _track->getCardinalRep();
+  if(rep)
+  {
+    genfit::FitStatus* fs = _track->getFitStatus(rep);
+    if(fs) return fs->getChi2()/fs->getNdf();
+  }
+  
+  return -1.;
+}
+
+void GFTrack::getFittedPosMom(TVector3& pos, TVector3& mom)
+{
+  _track->getFittedState().getPosMom(pos, mom);
 }
 
 double GFTrack::extrapolateToLine(TVector3& endPoint1, TVector3& endPoint2, const int startPtID)
@@ -719,20 +754,44 @@ SRecTrack GFTrack::getSRecTrack()
 
 void GFTrack::print(unsigned int debugLvl)
 {
-  std::cout << "=============== SGTrack ===============" << std::endl;
-  std::cout << "------------ Track candidate ----------" << std::endl;
-  _trkcand->print();
-
-  std::cout << "------------ Fit status ---------------" << std::endl;
+  std::cout << "================ SGTrack ================" << std::endl;
+  std::cout << "-------------- Fit status ---------------" << std::endl;
   _track->getFitStatus(_trkrep)->Print();
+  std::cout << getChi2() << "  " << getNDF() << std::endl;
 
-  std::cout << "------------ Fit Result ---------------" << std::endl;
-  _track->getFittedState().Print();  //default to the first hit
+  if(debugLvl > 0)
+  {
+    std::cout << "------------- Track candidate -----------" << std::endl;
+    _trkcand->print();
+  }
+  else
+  {
+    std::cout << "Track has " << _track->getNumPoints() << " track points: " << std::endl;
+    for(auto it = _measurements.begin(); it != _measurements.end(); ++it)
+    {
+      SignedHit& hit = (*it)->getBeforeFitHit();
+      std::cout << hit.hit.index << " " << hit.hit.detectorID << " " << hit.hit.elementID << " -:- ";
+    }
+    std::cout << std::endl;
+  }
 
-  if(debugLvl < 1) return;
+  if(debugLvl > 0)
+  {
+    std::cout << "------------- Fit Result ----------------" << std::endl;
+    _track->getFittedState().Print();  //default to the first hit
+  }
+  else
+  {
+    TVector3 pos, mom;
+    _track->getFittedState().getPosMom(pos, mom);
+    std::cout << "Fitted pos (X,Y,Z) = " << std::setprecision(6) << pos.X() << " " << pos.Y() << " " << pos.Z() << " cm,  ";
+    std::cout << "fitted mom (Px,Py,Pz) = " << mom.X() << " " << mom.Y() << " " << mom.Z() << " GeV" << std::endl;
+  }
+
+  if(debugLvl < 2) return;
   for(auto iter = _measurements.begin(); iter != _measurements.end(); ++iter)
   {
-    (*iter)->print(debugLvl-1);
+    (*iter)->print(debugLvl-2);
   }
 
   if(debugLvl < 20) return;

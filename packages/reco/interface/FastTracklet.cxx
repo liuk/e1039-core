@@ -525,6 +525,7 @@ int Tracklet::isValid() const
     {
         //Number of hits cuts, second index is X, U, V, first index is station-1, 2, 3
         int nRealHits[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+        nXHits = 0; nUHits = 0; nVHits = 0;
         for(std::list<SignedHit>::const_iterator iter = hits.begin(); iter != hits.end(); ++iter)
         {
             if(iter->hit.index < 0) continue;
@@ -533,6 +534,12 @@ int Tracklet::isValid() const
             int idx2 = p_geomSvc->getPlaneType(iter->hit.detectorID) - 1;
 
             ++nRealHits[idx1][idx2];
+            if(idx2 == 0)
+                ++nXHits;
+            else if(idx2 == 1)
+                ++nUHits;
+            else
+                ++nVHits;
         }
 
         //Number of hits cut after removing bad hits
@@ -557,37 +564,6 @@ int Tracklet::isValid() const
     }
 
     return 1;
-}
-
-void Tracklet::updateNHits()
-{
-    /*
-      This function is originally included in the isValid() function, applied when stationID >= nStations-1.
-      It is moved to this separate function so that isValid can be a const function
-      TODO: Need to verify this function is not really needed, i.e. the nX/U/Vhits counter has been properly taken care of for 
-      during  the hit removal process.
-    */
-    nXHits = 0;
-    nUHits = 0;
-    nVHits = 0;
-    for(std::list<SignedHit>::const_iterator iter = hits.begin(); iter != hits.end(); ++iter)
-    {
-        if(iter->hit.index < 0) continue;
-
-        int idx = p_geomSvc->getPlaneType(iter->hit.detectorID) - 1;
-        if(idx == 0)
-        {
-            ++nXHits;
-        }
-        else if(idx == 1)
-        {
-            ++nUHits;
-        }
-        else
-        {
-            ++nVHits;
-        }
-    }
 }
 
 double Tracklet::getProb() const
@@ -674,7 +650,13 @@ double Tracklet::getExpPositionW(int detectorID) const
     double x_exp = getExpPositionX(z);
     double y_exp = getExpPositionY(z);
 
+    if(!p_geomSvc->isInPlane(detectorID, x_exp, y_exp)) return 999999.;
     return p_geomSvc->getCostheta(detectorID)*x_exp + p_geomSvc->getSintheta(detectorID)*y_exp;
+}
+
+int Tracklet::getExpElementID(int detectorID) const
+{
+  return p_geomSvc->getExpElementID(detectorID, getExpPositionW(detectorID));
 }
 
 bool Tracklet::operator<(const Tracklet& elem) const
@@ -994,6 +976,17 @@ double Tracklet::Eval(const double* par)
     x0 = par[2];
     y0 = par[3];
     if(KMAG_ON) invP = par[4];
+
+    //std::cout << tx << "  " << ty << "  " << x0 << "  " << y0 << "  " << 1./invP << std::endl;
+    return calcChisq();
+}
+
+double Tracklet::Eval4(const double* par)
+{
+    tx = par[0];
+    ty = par[1];
+    x0 = par[2];
+    y0 = par[3];
 
     //std::cout << tx << "  " << ty << "  " << x0 << "  " << y0 << "  " << 1./invP << std::endl;
     return calcChisq();
