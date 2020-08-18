@@ -53,8 +53,8 @@ bool SRawEventSvc::setRawEvent(SRawEvent* r, bool buildAuxInfo)
   }
   for(int i = detectorID_prev+1; i < nChamberPlanes+nHodoPlanes+nPropPlanes+nDarkPhotonPlanes+1+1; ++i) idxFirst[i] = rawEvent->fNHits[0];
 
-  for(int i = 0; i < nChamberPlanes+nHodoPlanes+nPropPlanes+nDarkPhotonPlanes+1; ++i) LogDebug(i << " - " << idxFirst[i]);
-  for(int i = 0; i < nHodoPlanes; ++i) LogDebug(i << "  " << std::bitset<32>(hodoPatterns[i]));
+  for(int i = 0; i < nChamberPlanes+nHodoPlanes+nPropPlanes+nDarkPhotonPlanes+1; ++i) LogDebuglv2(i << " - " << idxFirst[i]);
+  for(int i = 0; i < nHodoPlanes; ++i) LogDebuglv2(i << "  " << std::bitset<32>(hodoPatterns[i]));
   return true;
 }
 
@@ -136,7 +136,7 @@ std::list<SRawEventSvc::HitPair_t> SRawEventSvc::getHitPairsInDetectorPair(short
 
   std::vector<int> hitflag1(hitlist1.size(), -1);   //-1 means out-of-the window, 0 means in the window but not paired, 1 means used in pair(s)
   std::vector<int> hitflag2(hitlist2.size(), -1);  
-  LogDebug("Search win " << p_exp << "+/-" << win << ": " << hitlist1.size() << "  " << hitlist2.size());
+  LogDebuglv2("PairID = " << pairID << " search win " << p_exp << "+/-" << win << ": " << hitlist1.size() << "  " << hitlist2.size());
 
   int index1 = -1;
   int index2 = -1;
