@@ -30,6 +30,12 @@ public:
 
   void trimTracklist(std::list<SQGenFit::GFTrackPtr>& tracklist);
 
+  bool acceptTrack(SQGenFit::GFTrack* track);
+
+  std::list<SQGenFit::GFTrackPtr>& getTracks() { return tracks; }
+
+  void printTimer() { timer.print_stat(); }
+
 private:
   SRawEventSvc* p_rawEvtSvc;
   GeomSvc*      p_geomSvc;
@@ -37,6 +43,10 @@ private:
   SQGenFit::GFFitter* fitter;
   SQGenFit::GFField* gfield;
   std::vector<int> sequence;
+
+  std::list<SQGenFit::GFTrackPtr> tracks;
+
+  PHTimer timer;
 };
 
 #endif

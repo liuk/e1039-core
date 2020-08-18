@@ -215,7 +215,7 @@ void GFTrack::getProjection(int detID, double& x, double& y, double& w, double& 
   dw = -1.E6;
 
   double z  = p_geomSvc->getPlanePosition(detID);
-  double rZ = p_geomSvc->getRotationInZ(detID);
+  double rZ = p_geomSvc->getStereoAngle(detID);
 
   TVector3 pO(0., 0., z);
   TVector3 pU(1., 0., 0.);
@@ -265,7 +265,7 @@ int GFTrack::getProjectedElementID(int detID, int fb)
   return p_geomSvc->getExpElementID(detID, w);
 }
 
-double GFTrack::getChi2()
+double GFTrack::getChi2() const
 {
   genfit::AbsTrackRep* rep = _track->getCardinalRep();
   if(rep)
@@ -277,7 +277,7 @@ double GFTrack::getChi2()
   return -1.;
 }
 
-double GFTrack::getNDF()
+double GFTrack::getNDF() const
 {
   genfit::AbsTrackRep* rep = _track->getCardinalRep();
   if(rep)
@@ -289,7 +289,7 @@ double GFTrack::getNDF()
   return -1.;
 }
 
-double GFTrack::getQuality()
+double GFTrack::getQuality() const
 {
   genfit::AbsTrackRep* rep = _track->getCardinalRep();
   if(rep)
@@ -301,7 +301,7 @@ double GFTrack::getQuality()
   return -1.;
 }
 
-void GFTrack::getFittedPosMom(TVector3& pos, TVector3& mom)
+void GFTrack::getFittedPosMom(TVector3& pos, TVector3& mom) const
 {
   _track->getFittedState().getPosMom(pos, mom);
 }
@@ -594,7 +594,7 @@ void GFTrack::checkConsistency()
   }
 }
 
-int GFTrack::getCharge()
+int GFTrack::getCharge() const
 {
   genfit::TrackPoint* tp = _track->getPointWithFitterInfo(0, _trkrep);
   if(tp == nullptr) return _trkcand->getCharge();
@@ -770,7 +770,7 @@ void GFTrack::print(unsigned int debugLvl)
     for(auto it = _measurements.begin(); it != _measurements.end(); ++it)
     {
       SignedHit& hit = (*it)->getBeforeFitHit();
-      std::cout << hit.hit.index << " " << hit.hit.detectorID << " " << hit.hit.elementID << " -:- ";
+      std::cout << hit.hit.index << " " << hit.hit.detectorID << " " << hit.hit.elementID << " : ";
     }
     std::cout << std::endl;
   }

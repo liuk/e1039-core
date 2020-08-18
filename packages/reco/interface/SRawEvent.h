@@ -223,7 +223,7 @@ public:
     void empty() { fAllHits.clear(); fTriggerHits.clear(); }
 
     ///Print for debugging purposes
-    void print (std::ostream& os = std::cout) const;
+    void print(std::ostream& os = std::cout, int verbose = 0) const;
 
     ///Friend class which handles all kinds of hit list reduction
     friend class EventReducer;

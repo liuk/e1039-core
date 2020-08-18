@@ -641,7 +641,7 @@ bool SRawEvent::isFPGATriggered()
     return isTriggeredBy(MATRIX1) || isTriggeredBy(MATRIX2) || isTriggeredBy(MATRIX3) || isTriggeredBy(MATRIX4) || isTriggeredBy(MATRIX5);
 }
 
-void SRawEvent::print(std::ostream& os) const
+void SRawEvent::print(std::ostream& os, int verbose) const
 {
     os << "RunID: " << fRunID << ", EventID: " << fEventID << "===============" << std::endl;
     for(Int_t i = 1; i <= nChamberPlanes+nHodoPlanes; i++)
@@ -650,7 +650,7 @@ void SRawEvent::print(std::ostream& os) const
     }
     os << "===================================================================" << std::endl;
 
-    return;
+    if(verbose == 0) return;
     for(auto iter = fAllHits.begin(); iter != fAllHits.end(); ++iter)
     {
         iter->print();

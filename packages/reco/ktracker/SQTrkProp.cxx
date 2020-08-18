@@ -7,16 +7,10 @@
 
 #include <GlobalConsts.h>
 
-//#define _DEBUG_ON
-#ifdef _DEBUG_ON
-#  define LogDebug(exp) std::cout << "DEBUG: " << typeid(*this).name() << " " << __FUNCTION__ << " " << __LINE__ << " :: " << exp << std::endl
-#else
-#  define LogDebug(exp)
-#endif
-
 SQTrkProp::SQTrkProp(const PHField* field): 
   p_geomSvc(GeomSvc::instance()), 
   p_rawEvtSvc(SRawEventSvc::instance()),
+  timer(PHTimer("TrkProp")),
   fitter(nullptr)
 {
   sequence = std::vector<int>{9, 8, 7, 3, 2, 1};
@@ -25,6 +19,8 @@ SQTrkProp::SQTrkProp(const PHField* field):
   gfield = new SQGenFit::GFField(field);
   fitter = new SQGenFit::GFFitter();
   fitter->init(gfield, "KalmanFitterRefTrack");
+
+  timer.reset();
 }
 
 SQTrkProp::~SQTrkProp()
@@ -34,7 +30,10 @@ SQTrkProp::~SQTrkProp()
 
 void SQTrkProp::processSeed(Tracklet& seed)
 {
+  timer.restart();
+#ifdef _DEBUG_ON
   seed.identify();
+#endif
   SQGenFit::GFTrackPtr seedtrk(new SQGenFit::GFTrack());
   seedtrk->setTracklet(seed, 1900.);
 
@@ -45,7 +44,7 @@ void SQTrkProp::processSeed(Tracklet& seed)
     return;
   }
 
-  std::list<SQGenFit::GFTrackPtr> tracks;
+  tracks.clear();
   tracks.push_back(seedtrk);
   for(auto pairID = sequence.begin(); pairID != sequence.end(); ++pairID)
   {
@@ -65,14 +64,12 @@ void SQTrkProp::processSeed(Tracklet& seed)
     }
 
     trimTracklist(newTracks);
+    if(newTracks.empty()) break;
+
     tracks.assign(newTracks.begin(), newTracks.end());
   }
-
-  LogDebug("Reconstructed " << tracks.size() << " tracks");
-  for(auto track = tracks.begin(); track != tracks.end(); ++track)
-  {
-    (*track)->print();
-  }
+  tracks.sort(SQGenFit::GFTrackPtrComp());
+  timer.stop();
 }
 
 void SQTrkProp::propagateTo(SQGenFit::GFTrack* btrk, int detPairID, std::list<SQGenFit::GFTrackPtr>& tracklist)
@@ -88,7 +85,10 @@ void SQTrkProp::propagateTo(SQGenFit::GFTrack* btrk, int detPairID, std::list<SQ
   for(auto it = hitlist.begin(); it != hitlist.end(); ++it)
   {
     LogDebug("Try adding hit " << it->first << " and " << it->second << " at p = " << p_rawEvtSvc->hit(it->first).pos);
-    p_rawEvtSvc->hit(it->first).identify();
+#ifdef _DEBUG_ON
+    if(it->first  >= 0) p_rawEvtSvc->hit(it->first ).identify();
+    if(it->second >= 0) p_rawEvtSvc->hit(it->second).identify();
+#endif
     /* 
     Two tings we could do to potential speed up:
     1. use GFTrack::testOneHitKalman() to get a quick one step fit and cut on chi2
@@ -96,8 +96,8 @@ void SQTrkProp::propagateTo(SQGenFit::GFTrack* btrk, int detPairID, std::list<SQ
        for a full fit
     */
     SQGenFit::GFTrackPtr newTrack(btrk->clone());
-    if(it->first  > 0) newTrack->addMeasurement(SignedHit(p_rawEvtSvc->hit(it->first),  0));
-    if(it->second > 0) newTrack->addMeasurement(SignedHit(p_rawEvtSvc->hit(it->second), 0));
+    if(it->first  >= 0) newTrack->addMeasurement(SignedHit(p_rawEvtSvc->hit(it->first),  0));
+    if(it->second >= 0) newTrack->addMeasurement(SignedHit(p_rawEvtSvc->hit(it->second), 0));
     
     int status = fitter->processTrack(*newTrack);
     if(status == 0) 
@@ -114,9 +114,7 @@ void SQTrkProp::trimTracklist(std::list<SQGenFit::GFTrackPtr>& tracklist)
 {
   for(auto track = tracklist.begin(); track != tracklist.end(); )
   {
-    TVector3 pos, mom;
-    (*track)->getFittedPosMom(pos, mom);
-    if(mom.Mag() < 10.)
+    if(!acceptTrack(track->get()))
     {
       track = tracklist.erase(track);
     }
@@ -126,3 +124,15 @@ void SQTrkProp::trimTracklist(std::list<SQGenFit::GFTrackPtr>& tracklist)
     }
   }
 }
+
+bool SQTrkProp::acceptTrack(SQGenFit::GFTrack* track)
+{
+  if(track->getQuality() > 10.) return false;
+
+  TVector3 pos, mom;
+  track->getFittedPosMom(pos, mom);
+  if(mom.Mag() < 10.) return false;
+
+  return true;
+}
+

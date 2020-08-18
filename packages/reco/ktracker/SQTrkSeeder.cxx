@@ -3,13 +3,6 @@
 #include <Math/Functor.h>
 #include <bitset>
 
-//#define _DEBUG_ON
-#ifdef _DEBUG_ON
-#  define LogDebug(exp) std::cout << "DEBUG: " << typeid(*this).name() << " " << __FUNCTION__ << " " << __LINE__ << " :: " << exp << std::endl
-#else
-#  define LogDebug(exp)
-#endif
-
 namespace 
 {
   //static flag to indicate the initialized has been done

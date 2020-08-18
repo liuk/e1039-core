@@ -63,11 +63,11 @@ public:
   int getProjectedElementID(int detID, int fb = 0);
 
   //! quick access to the track fit quality parameters and results
-  double getChi2();
-  double getNDF();
-  double getQuality();
-  int getCharge();
-  void getFittedPosMom(TVector3& pos, TVector3& mom);
+  double getChi2() const;
+  double getNDF() const;
+  double getQuality() const;
+  int getCharge() const;
+  void getFittedPosMom(TVector3& pos, TVector3& mom) const;
 
   //! The extrapolation is implemented for line, plane and point, but the update/filter is only implemeted 
   //! for line and plane, user needs to be careful and pass correct measurement and cov to get sensible result
@@ -127,6 +127,11 @@ private:
 };
 
 typedef std::shared_ptr<GFTrack> GFTrackPtr;
+class GFTrackPtrComp
+{
+public:
+  bool operator() (const GFTrackPtr& lhs, const GFTrackPtr& rhs) const { return lhs->getQuality() < rhs->getQuality(); }
+};
 }
 
 #endif

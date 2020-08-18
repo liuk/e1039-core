@@ -2,13 +2,6 @@
 
 #include <bitset>
 
-//#define _DEBUG_ON
-#ifdef _DEBUG_ON
-#  define LogDebug(exp) std::cout << "DEBUG: " << typeid(*this).name() << " " << __FUNCTION__ << " " << __LINE__ << " :: " << exp << std::endl
-#else
-#  define LogDebug(exp)
-#endif
-
 SRawEventSvc* SRawEventSvc::p_rawEventSvc = nullptr;
 SRawEventSvc* SRawEventSvc::instance()
 {
@@ -49,7 +42,6 @@ bool SRawEventSvc::setRawEvent(SRawEvent* r, bool buildAuxInfo)
   {
     if(hits[i].detectorID > detectorID_prev)
     {
-      //idxFirst[hits[i].detectorID] = i;
       for(int j = detectorID_prev+1; j <= hits[i].detectorID; ++j) idxFirst[j] = i;
       detectorID_prev = hits[i].detectorID;
     }
@@ -137,14 +129,14 @@ std::list<int> SRawEventSvc::getHitsIndexInDetectors(std::vector<int>& detectorI
 
 std::list<SRawEventSvc::HitPair_t> SRawEventSvc::getHitPairsInDetectorPair(short pairID, double p_exp, double win)
 {
+  if(win < spacing_limit[pairID]) win += spacing_limit[pairID];
   std::list<HitPair_t> hitpairs;
   std::list<int> hitlist1 = getHitsIndexInDetector(2*pairID,   p_exp, win);
   std::list<int> hitlist2 = getHitsIndexInDetector(2*pairID-1, p_exp, win+spacing_limit[pairID]);
 
   std::vector<int> hitflag1(hitlist1.size(), -1);   //-1 means out-of-the window, 0 means in the window but not paired, 1 means used in pair(s)
   std::vector<int> hitflag2(hitlist2.size(), -1);  
-
-  LogInfo(hitlist1.size() << "  " << hitlist2.size());
+  LogDebug("Search win " << p_exp << "+/-" << win << ": " << hitlist1.size() << "  " << hitlist2.size());
 
   int index1 = -1;
   int index2 = -1;
@@ -152,7 +144,6 @@ std::list<SRawEventSvc::HitPair_t> SRawEventSvc::getHitPairsInDetectorPair(short
   {
     ++index1;
     double pos1 = p_geomSvc->getMeasurement(hit(*iter).detectorID, hit(*iter).elementID);
-    //if(win < 998. && fabs(pos1 - p_exp) > win) continue;
 
     hitflag1[index1] = 0;
     index2 = -1;
@@ -160,7 +151,6 @@ std::list<SRawEventSvc::HitPair_t> SRawEventSvc::getHitPairsInDetectorPair(short
     {
       ++index2;
       double pos2 = p_geomSvc->getMeasurement(hit(*jter).detectorID, hit(*jter).elementID);
-      //if(win < 998. && fabs(pos2 - p_exp) > win) continue;
       
       hitflag2[index2] = 0;
       if(fabs(pos1 - pos2) > spacing_limit[pairID]) continue;
