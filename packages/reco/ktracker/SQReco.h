@@ -43,6 +43,7 @@ class SQReco: public SubsysReco
 {
 public:
   enum INPUT_TYPE  {E906, E1039};
+  enum FINDER_TYPE {KTRACKER, GENFIT};
   enum FITTER_TYPE {LEGACY, KF, KFREF, DAF, DAFREF};
 
   SQReco(const std::string& name = "SQReco");
@@ -53,7 +54,8 @@ public:
   int process_event(PHCompositeNode* topNode);
   int End(PHCompositeNode* topNode);
 
-  void setInputTy(SQReco::INPUT_TYPE input_ty) { _input_type = input_ty; }
+  void setInputTy(SQReco::INPUT_TYPE input_ty)    { _input_type = input_ty; }
+  void setFinderTy(SQReco::FINDER_TYPE finder_ty) { _finder_type = finder_ty; }
   void setFitterTy(SQReco::FITTER_TYPE fitter_ty) { _fitter_type = fitter_ty; }
 
   const TString& get_eval_file_name() const { return _eval_file_name; }
@@ -96,6 +98,7 @@ private:
   void fillRecTrack(SRecTrack& recTrack);
 
   SQReco::INPUT_TYPE  _input_type;
+  SQReco::FINDER_TYPE _finder_type;
   SQReco::FITTER_TYPE _fitter_type;
 
   bool _enable_eval;

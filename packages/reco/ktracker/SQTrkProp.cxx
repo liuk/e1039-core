@@ -28,7 +28,7 @@ SQTrkProp::~SQTrkProp()
   if(fitter != nullptr) delete fitter;
 }
 
-void SQTrkProp::processSeed(Tracklet& seed)
+int SQTrkProp::processSeed(Tracklet& seed)
 {
   timer.restart();
 #ifdef _DEBUG_ON
@@ -41,7 +41,8 @@ void SQTrkProp::processSeed(Tracklet& seed)
   if(status != 0) 
   {
     LogDebug("Seed track failed fitting: " << status);
-    return;
+    timer.stop();
+    return 0;
   }
 
   tracks.clear();
@@ -64,12 +65,18 @@ void SQTrkProp::processSeed(Tracklet& seed)
     }
 
     trimTracklist(newTracks);
-    if(newTracks.empty()) break;
+    if(newTracks.empty()) 
+    {
+      timer.stop();
+      return 0;
+    }
 
     tracks.assign(newTracks.begin(), newTracks.end());
   }
   tracks.sort(SQGenFit::GFTrackPtrComp());
   timer.stop();
+
+  return tracks.size();
 }
 
 void SQTrkProp::propagateTo(SQGenFit::GFTrack* btrk, int detPairID, std::list<SQGenFit::GFTrackPtr>& tracklist)
@@ -100,13 +107,25 @@ void SQTrkProp::propagateTo(SQGenFit::GFTrack* btrk, int detPairID, std::list<SQ
     if(it->second >= 0) newTrack->addMeasurement(SignedHit(p_rawEvtSvc->hit(it->second), 0));
     
     int status = fitter->processTrack(*newTrack);
-    if(status == 0) 
+    if(status != 0 || !acceptTrack(newTrack.get())) 
+    {
+      LogDebug("Previous fit failed with return code " << status << ", reset and retry fit: ");
+      newTrack.reset(newTrack->clone(true));
+      status = fitter->processTrack(*newTrack);
+    }
+
+    if(status == 0 && acceptTrack(newTrack.get())) 
     {
       tracklist.push_back(newTrack);
       LogDebug("Fit successful for this pair");
     }
+#ifdef _DEBUG_ON
     else
+    {
       LogDebug("Fit failed for this pair: " << status);
+      newTrack->print();
+    }
+#endif
   }
 }
 
@@ -114,6 +133,10 @@ void SQTrkProp::trimTracklist(std::list<SQGenFit::GFTrackPtr>& tracklist)
 {
   for(auto track = tracklist.begin(); track != tracklist.end(); )
   {
+#ifdef _DEBUG_ON
+    track->get()->print();
+#endif
+
     if(!acceptTrack(track->get()))
     {
       track = tracklist.erase(track);
@@ -127,12 +150,21 @@ void SQTrkProp::trimTracklist(std::list<SQGenFit::GFTrackPtr>& tracklist)
 
 bool SQTrkProp::acceptTrack(SQGenFit::GFTrack* track)
 {
-  if(track->getQuality() > 10.) return false;
+  if(track->getQuality() > 10.) 
+  {
+    LogDebug("Track failed because of bad quality: " << track->getQuality());
+    return false;
+  }
 
   TVector3 pos, mom;
   track->getFittedPosMom(pos, mom);
-  if(mom.Mag() < 10.) return false;
+  if(mom.Mag() < 1.) 
+  {
+    LogDebug("Track failed because of low momentum: " << mom.Mag());
+    return false;
+  }
 
+  LogDebug("Track accepted.");
   return true;
 }
 

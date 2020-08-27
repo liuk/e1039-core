@@ -53,8 +53,8 @@ SQTrkSeeder::SQTrkSeeder(): p_geomSvc(GeomSvc::instance()), p_rawEvtSvc(SRawEven
   gErrorIgnoreLevel = 9999;
 
   minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Combined");
-  minimizer->SetMaxFunctionCalls(10000);
-  minimizer->SetMaxIterations(20);
+  minimizer->SetMaxFunctionCalls(1000000);
+  minimizer->SetMaxIterations(100);
   minimizer->SetTolerance(1E-2);
   minimizer->SetPrintLevel(0);
 
@@ -80,7 +80,7 @@ void SQTrkSeeder::registerSeedingStation(TrackingStationInfo::StID_t stID)
   stInfo.uSintheta = p_geomSvc->getSintheta(2*stInfo.uPairID-1);
   stInfo.uCellWidth = p_geomSvc->getCellWidth(2*stInfo.uPairID-1);
   double uScaleY = p_geomSvc->getPlaneScaleY(2*stInfo.uPairID-1);
-  stInfo.uWinSize = fabs(0.5*uScaleY*stInfo.uSintheta) + TX_MAX*fabs((stInfo.uZ- stInfo.xZ)*stInfo.uCostheta) + TY_MAX*fabs((stInfo.uZ - stInfo.xZ)*stInfo.uSintheta) + 2.*stInfo.uSintheta + 10.;  //TODO: 10 is something we need to optimize
+  stInfo.uWinSize = fabs(0.5*uScaleY*stInfo.uSintheta) + TX_MAX*fabs((stInfo.uZ- stInfo.xZ)*stInfo.uCostheta) + TY_MAX*fabs((stInfo.uZ - stInfo.xZ)*stInfo.uSintheta) + 2.*stInfo.uSintheta + 15.;  //TODO: 10 is something we need to optimize
 
   stInfo.vPairID = (p_geomSvc->getDetectorID(stInfo.stationName() + "V") + 1)/2;
   stInfo.vZ = 0.5*(z_plane[2*stInfo.vPairID-1] + z_plane[2*stInfo.vPairID]);
@@ -119,7 +119,6 @@ bool SQTrkSeeder::acceptSeed(Tracklet& seed)
   //    return false;
   return true;
 }
-
 
 void SQTrkSeeder::buildSeedInSt(TrackingStationInfo::StID_t stID)
 {  

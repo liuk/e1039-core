@@ -118,11 +118,13 @@ GFTrack* GFTrack::clone(bool clean) const
   GFTrack* newTrack = new GFTrack();
   if(clean) 
   {
-    newTrack->setTracklet(*_trkcand);
+    newTrack->setTracklet(*_trkcand, 1900.);
   }
   else
   {
-    newTrack->_track = new genfit::Track(*_track);
+    newTrack->_track  = new genfit::Track(*_track);
+    newTrack->_trkrep = newTrack->_track->getCardinalRep();
+    newTrack->_pdg    = newTrack->_trkrep->getPDG();
     if(_trkcand != nullptr) newTrack->_trkcand = _trkcand->Clone();
 
     newTrack->restoreFromGenFitTrack();
@@ -131,15 +133,14 @@ GFTrack* GFTrack::clone(bool clean) const
   return newTrack;
 }
 
-void GFTrack::restoreFromGenFitTrack()
+void GFTrack::restoreFromGenFitTrack(genfit::Track* trkin)
 {
-  _trkrep = _track->getCardinalRep();
-  _pdg = _trkrep->getPDG();
+  genfit::Track* gftrk = trkin == nullptr ? _track : trkin;
 
-  unsigned int nHits = _track->getNumPoints();
+  unsigned int nHits = gftrk->getNumPoints();
   for(unsigned int i = 0; i < nHits; ++i)
   {
-    genfit::TrackPoint* tp = _track->getPoint(i);
+    genfit::TrackPoint* tp = gftrk->getPoint(i);
     GFMeasurement* meas = const_cast<GFMeasurement*>(dynamic_cast<GFMeasurement*>(tp->getRawMeasurement()));
     meas->setTrackPtr(this);
     _measurements.insert(meas);
@@ -577,7 +578,7 @@ double GFTrack::getDumpPathLen()
 void GFTrack::reset(bool updateSeed)
 {
   if(updateSeed) _track->udpateSeed(0, _trkrep, true);
-  _track->deleteFittedState(_trkrep);
+  _track->deleteFittedState(_track->getCardinalRep());
 }
 
 void GFTrack::checkConsistency()
@@ -628,6 +629,7 @@ void GFTrack::setTracklet(const Tracklet& tracklet, double z_reference, bool wil
       seed_cov[i][j] = uncertainty[i]*uncertainty[j];
     }
   }
+
 
   if(!wildseedcov)
   {
@@ -754,10 +756,8 @@ SRecTrack GFTrack::getSRecTrack()
 
 void GFTrack::print(unsigned int debugLvl)
 {
-  std::cout << "================ SGTrack ================" << std::endl;
-  std::cout << "-------------- Fit status ---------------" << std::endl;
+  std::cout << "================================================ SGTrack ================================================" << std::endl;
   _track->getFitStatus(_trkrep)->Print();
-  std::cout << getChi2() << "  " << getNDF() << std::endl;
 
   if(debugLvl > 0)
   {
@@ -770,11 +770,13 @@ void GFTrack::print(unsigned int debugLvl)
     for(auto it = _measurements.begin(); it != _measurements.end(); ++it)
     {
       SignedHit& hit = (*it)->getBeforeFitHit();
-      std::cout << hit.hit.index << " " << hit.hit.detectorID << " " << hit.hit.elementID << " : ";
+      std::cout << hit.hit.index << "  " << p_geomSvc->getDetectorName(hit.hit.detectorID) << "(" << hit.hit.detectorID << ") " << hit.hit.elementID << " : ";
     }
     std::cout << std::endl;
   }
 
+  try
+  {
   if(debugLvl > 0)
   {
     std::cout << "------------- Fit Result ----------------" << std::endl;
@@ -784,14 +786,19 @@ void GFTrack::print(unsigned int debugLvl)
   {
     TVector3 pos, mom;
     _track->getFittedState().getPosMom(pos, mom);
-    std::cout << "Fitted pos (X,Y,Z) = " << std::setprecision(6) << pos.X() << " " << pos.Y() << " " << pos.Z() << " cm,  ";
-    std::cout << "fitted mom (Px,Py,Pz) = " << mom.X() << " " << mom.Y() << " " << mom.Z() << " GeV" << std::endl;
+      std::cout << "Fitted pos (X,  Y, Z) = " << std::setprecision(6) << pos.X() << " " << pos.Y() << " " << pos.Z() << " cm\n";
+      std::cout << "Fitted mom (Px,Py,Pz) = " << mom.X() << " " << mom.Y() << " " << mom.Z() << " GeV" << std::endl;
   }
 
   if(debugLvl < 2) return;
   for(auto iter = _measurements.begin(); iter != _measurements.end(); ++iter)
   {
     (*iter)->print(debugLvl-2);
+  }
+  }
+  catch(...)
+  {
+    return;
   }
 
   if(debugLvl < 20) return;

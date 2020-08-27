@@ -93,7 +93,7 @@ public:
   void checkConsistency();
 
   //! this function will restore the information from a GenFit track, including: trkrep, measurements, pdg code, etc.
-  void restoreFromGenFitTrack();
+  void restoreFromGenFitTrack(genfit::Track* trkin = nullptr);
 
   //! update all the hits uinfo (residual, chi2, etc.) after fit
   void postFitUpdate(bool updateMeasurements = true);

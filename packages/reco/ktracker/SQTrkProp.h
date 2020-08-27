@@ -24,7 +24,7 @@ public:
 
   void setPropSequence(std::initializer_list<int> seq) { sequence = seq; }
 
-  void processSeed(Tracklet& seed);
+  int  processSeed(Tracklet& seed);
 
   void propagateTo(SQGenFit::GFTrack* btrk, int detPairID, std::list<SQGenFit::GFTrackPtr>& tracklist);
 
@@ -34,7 +34,7 @@ public:
 
   std::list<SQGenFit::GFTrackPtr>& getTracks() { return tracks; }
 
-  void printTimer() { timer.print_stat(); }
+  void printTimer() { std::cout << "============================== SQTrkProp timer info ====================================" << std::endl; timer.print_stat(); }
 
 private:
   SRawEventSvc* p_rawEvtSvc;

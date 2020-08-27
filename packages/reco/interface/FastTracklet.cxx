@@ -933,6 +933,7 @@ double Tracklet::calcChisq()
         double sigma;
         if(iter->sign == 0 || COARSE_MODE) 
             sigma = p_geomSvc->getPlaneSpacing(detectorID)/sqrt(12.);
+            //sigma = fabs(iter->hit.driftDistance)/sqrt(12.);
         else
             sigma = p_geomSvc->getPlaneResolution(detectorID);
 
@@ -1083,7 +1084,7 @@ void Tracklet::print(std::ostream& os)
         if(iter->sign < 0) os << "R: ";
         if(iter->sign == 0) os << "U: ";
 
-        os << iter->hit.index << " " << iter->hit.detectorID << "  " << iter->hit.elementID << "  " << residual[iter->hit.detectorID-1] << " === ";
+        os << iter->hit.index << " " << p_geomSvc->getDetectorName(iter->hit.detectorID) << "(" << iter->hit.detectorID << ") " << iter->hit.elementID << "  " << residual[iter->hit.detectorID-1] << " = ";
     }
     os << endl;
 

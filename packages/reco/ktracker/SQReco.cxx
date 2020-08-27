@@ -48,6 +48,7 @@
 SQReco::SQReco(const std::string& name):
   SubsysReco(name),
   _input_type(SQReco::E1039),
+  _finder_type(SQReco::KTRACKER),
   _fitter_type(SQReco::KFREF),
   _enable_eval(false),
   _save_rawevent(false),
