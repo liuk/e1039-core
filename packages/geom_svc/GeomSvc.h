@@ -225,9 +225,9 @@ public:
     int getPlaneNElements(int detectorID) const { return planes[detectorID].nElements; }
     int getPlaneType(int detectorID)      const { return planes[detectorID].planeType; }
 
-    double getKMAGCenter()    const { return (zmin_kmag + zmax_kmag)/2.; }
-    double getKMAGUpstream()  const { return zmin_kmag; }
-    double getKMAGDownstream()const { return zmax_kmag; }
+    int getPlaneType(int detectorID) const { return planes[detectorID].planeType; }
+    int getHodoStation(const int detectorID) const; //< Return a station number (1-4) for hodo planes or "0" for others.
+    int getHodoStation(const std::string detectorName) const; //< Return a station number (1-4) for hodo planes or "0" for others.
 
     int getTriggerLv(int detectorID)   { return map_detid_triggerlv[detectorID]; }
 
