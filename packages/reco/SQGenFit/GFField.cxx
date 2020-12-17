@@ -6,10 +6,27 @@
 
 namespace SQGenFit
 {
-GFField::GFField(const PHField* field): _field(field)
+GFField* GFField::_p_field = nullptr;
+GFField* GFField::instance(const PHField* field)
 {
-  _scale = 1.;
-  _disable = false;
+  if(field != nullptr)
+  {
+    _p_field = new GFField(field);
+  }
+
+  return _p_field;
+}
+
+GFField::GFField(const PHField* field): 
+  _field(field),
+  _scale(1.),
+  _zoffset(0.),
+  _disable(false)
+{
+  if(field == nullptr)
+  {
+    std::cerr << "PHField not intialted for the GFField !!" << std::endl; 
+  }
 }
 
 TVector3 GFField::get(const TVector3& pos) const
@@ -34,7 +51,13 @@ void GFField::get(const double& x, const double& y, const double& z, double& Bx,
     return;
   }
 
-  const double Point[] = {x*CLHEP::cm, y*CLHEP::cm, z*CLHEP::cm, 0.};
+  double Point[] = {x*CLHEP::cm, y*CLHEP::cm, z*CLHEP::cm, 0.};
+  if(z < 650.) 
+  {
+    Point[2] -= (_zoffset*CLHEP::cm); //we assume positive zoffset means moving magnet downstream, which is equivalent to moving track upstream
+    //std::cout << z << "  " << Point[2] << "  " << _zoffset << std::endl;
+  }
+
   double Bfield[6];
   for(int i = 0; i < 6; ++i)
   {

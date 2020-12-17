@@ -11,6 +11,8 @@ namespace SQGenFit
 class GFField: public genfit::AbsBField
 {
 public:
+  static GFField* instance(const PHField* field = nullptr);
+
   GFField(const PHField* field);
   virtual ~GFField() {}
 
@@ -18,13 +20,16 @@ public:
   void get(const double& posX, const double& posY, const double& posZ, double& Bx, double& By, double& Bz) const;
 
   void setScale(double scale) { _scale = scale; }
+  void setZOffset(double offset) { _zoffset = offset; }
   void disable() { _disable = true; }
 
 private:
   const PHField* _field;
   double _scale;
+  double _zoffset;
   bool   _disable;
 
+  static GFField* _p_field;
 };
 }
 
