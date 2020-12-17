@@ -185,7 +185,7 @@ int SQReco::InitField(PHCompositeNode* topNode)
     field_scan.close();
   }
 
-  if(_fitter_type != SQReco::LEGACY) _gfield = new SQGenFit::GFField(_phfield);
+  if(_fitter_type != SQReco::LEGACY) _gfield = SQGenFit::GFField::instance(_phfield);
   return Fun4AllReturnCodes::EVENT_OK;
 }
 

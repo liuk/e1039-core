@@ -12,6 +12,7 @@
 
 #include "SRecEvent.h"
 #include "GFTrack.h"
+#include "GFField.h"
 
 #include <iostream>
 #include <vector>
@@ -20,6 +21,7 @@ SQTruthVertexing::SQTruthVertexing(const std::string& name):
   SubsysReco(name),
   legacyContainer(false),
   vtxSmearing(-1.),
+  fieldOffset(0.),
   recEvent(nullptr),
   recTrackVec(nullptr),
   truthTrackVec(nullptr),
@@ -50,6 +52,9 @@ int SQTruthVertexing::InitRun(PHCompositeNode* topNode)
 
 int SQTruthVertexing::process_event(PHCompositeNode* topNode)
 {
+  SQGenFit::GFField* field = SQGenFit::GFField::instance();
+  field->setZOffset(fieldOffset);
+
   std::map<int, SRecTrack*> posTracks;
   std::map<int, SRecTrack*> negTracks;
   int nTracks = truthTrackVec->size();
@@ -123,6 +128,7 @@ int SQTruthVertexing::process_event(PHCompositeNode* topNode)
   //   }
   // }
 
+  field->setZOffset(0.);
   return Fun4AllReturnCodes::EVENT_OK;
 }
 

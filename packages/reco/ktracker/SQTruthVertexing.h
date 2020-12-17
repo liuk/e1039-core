@@ -12,6 +12,11 @@ class SRecEvent;
 class SRecTrack;
 class SRecDimuon;
 
+namespace SQGenFit
+{
+  class GFField;
+}
+
 /// An SubsysReco module to create create dimuons based on the truth vertex information
 /**
  * This module adds the following information depending on the container type of the reconstruction info
@@ -49,6 +54,7 @@ public:
 
   void set_legacy_rec_container(const bool enable = true) { legacyContainer = enable; }
   void set_vtx_smearing(const double r) { vtxSmearing = r; }
+  void set_field_offset(const double o) { fieldOffset = o; }
 
 private:
   int MakeNodes(PHCompositeNode* topNode);
@@ -61,6 +67,8 @@ private:
 
   bool legacyContainer;
   double vtxSmearing;
+
+  double fieldOffset;
 
   SRecEvent*      recEvent;
   SQTrackVector*  recTrackVec;
