@@ -5,7 +5,6 @@
 #include <TGeoManager.h>
 #include <TRandom.h>
 
-#include <jobopts_svc/JobOptsSvc.h>
 #include <geom_svc/GeomSvc.h>
 #include <phfield/PHField.h>
 #include <phfield/PHFieldConfig_v3.h>
@@ -31,9 +30,6 @@ int main(int argc, char* argv[])
   rc->set_DoubleFlag("KMAGSTR", 1.);
   rc->Print();
 
-  JobOptsSvc* p_jobOptsSvc = JobOptsSvc::instance();
-  p_jobOptsSvc->init("run7_sim.opts");
-
   GeomSvc::UseDbSvc(true);
   GeomSvc* p_geomSvc = GeomSvc::instance();
   p_geomSvc->printTable();
@@ -41,8 +37,7 @@ int main(int argc, char* argv[])
   TGeoManager::Import("geom.root");
 
   //Let's hack a zero field
-  unique_ptr<PHFieldConfig> default_field_cfg(nullptr);
-  default_field_cfg.reset(new PHFieldConfig_v3(p_jobOptsSvc->m_fMagFile, p_jobOptsSvc->m_kMagFile));
+  unique_ptr<PHFieldConfig> default_field_cfg(new PHFieldConfig_v3(rc->get_CharFlag("fMagFile"), rc->get_CharFlag("kMagFile"), recoConsts::instance()->get_DoubleFlag("FMAGSTR"), recoConsts::instance()->get_DoubleFlag("KMAGSTR"), 5.));
   PHField* phfield = PHFieldUtility::BuildFieldMap(default_field_cfg.get(), 10);
   SQGenFit::GFField* gfield = new SQGenFit::GFField(phfield);
   //gfield->disable();

@@ -88,6 +88,7 @@ else # 'all' or 'resume'
     packages/reco/kfitter
     packages/reco/ktracker
     packages/embedding
+    packages/alignment
     simulation/g4dst
     online/onlmonserver
     packages/Display/display
