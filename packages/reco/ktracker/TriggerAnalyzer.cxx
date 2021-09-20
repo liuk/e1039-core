@@ -6,6 +6,7 @@
 #include <TSQLServer.h>
 #include <TSQLResult.h>
 #include <TSQLRow.h>
+#include <TString.h>
 
 #include <phool/recoConsts.h>
 
@@ -62,18 +63,18 @@ bool TriggerAnalyzer::init()
     int H3BID = p_geomSvc->getDetectorID("H3B");
     int H4BID = p_geomSvc->getDetectorID("H4B");
 
-    std::string roadsPT = Form("%s/firmware/roads/L1/%s/roads_plus_top.txt", rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
-    std::string roadsPB = Form("%s/firmware/roads/L1/%s/roads_plus_bottom.txt", rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
-    std::string roadsMT = Form("%s/firmware/roads/L1/%s/roads_minus_top.txt", rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
-    std::string roadsMB = Form("%s/firmware/roads/L1/%s/roads_minus_bottom.txt", rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
+    TString roadsPT = TString::Format("%s/firmware/roads/L1/%s/roads_plus_top.txt",     rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
+    TString roadsPB = TString::Format("%s/firmware/roads/L1/%s/roads_plus_bottom.txt",  rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
+    TString roadsMT = TString::Format("%s/firmware/roads/L1/%s/roads_minus_top.txt",    rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
+    TString roadsMB = TString::Format("%s/firmware/roads/L1/%s/roads_minus_bottom.txt", rc->get_CharFlag("TRIGGER_REPO").c_str(), rc->get_CharFlag("TRIGGER_L1").c_str());
 
-    std::string fileNames[4] = {roadsPT, roadsPB, roadsMT, roadsMB};
+    TString fileNames[4] = {roadsPT, roadsPB, roadsMT, roadsMB};
     char buffer[300];
     int pRoads = 0;
     int mRoads = 0;
     for(int i = 0; i < 4; ++i)
     {
-        fstream fin(fileNames[i].c_str(), ios::in);
+        fstream fin(fileNames[i].Data(), ios::in);
 
         while(fin.getline(buffer, 300))
         {

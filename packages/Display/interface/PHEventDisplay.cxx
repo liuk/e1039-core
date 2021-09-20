@@ -58,6 +58,7 @@
 
 #include <TThread.h>
 #include <TStyle.h>
+#include <TString.h>
 
 #include "PHEventDisplay.h"
 
@@ -84,8 +85,8 @@ const char* name = "Projection"
 
   TEveViewer* v; TEveScene* s;
   MakeViewerScene(slot, v, s);
-  v->SetElementName(Form("Viewer - %s",name));
-  s->SetElementName(Form("Scene - %s",name));
+  v->SetElementName(TString::Format("Viewer - %s",name).Data());
+  s->SetElementName(TString::Format("Scene - %s",name).Data());
 
   s->AddElement(element);
 
@@ -124,8 +125,8 @@ const char* name = "Hodo"
 
   TEveViewer* v; TEveScene* s;
   MakeViewerScene(slot, v, s);
-  v->SetElementName(Form("Viewer - %s",name));
-  s->SetElementName(Form("Scene - %s",name));
+  v->SetElementName(TString::Format("Viewer - %s",name).Data());
+  s->SetElementName(TString::Format("Scene - %s",name).Data());
 
   s->AddElement(element);
 
@@ -430,10 +431,10 @@ void PHEventDisplay::draw_default(PHCompositeNode *topNode)
   if (_sqevent) {
     if(verbosity) std::cout<<"PHEventDisplay - SQEvent nodes found."<<std::endl;
     v->DeleteOverlayAnnotations();
-    TGLAnnotation* ann = new TGLAnnotation(v, Form("Run: %d, Spill: %d, Event: %d", _sqevent->get_run_id(), _sqevent->get_spill_id(), _sqevent->get_event_id()), 0.55, 0.95);
+    TGLAnnotation* ann = new TGLAnnotation(v, TString::Format("Run: %d, Spill: %d, Event: %d", _sqevent->get_run_id(), _sqevent->get_spill_id(), _sqevent->get_event_id()).Data(), 0.55, 0.95);
     ann->SetTextSize(0.04);
     ann = new TGLAnnotation(v,
-        Form("NIM: {%d, %d, %d, %d, %d}  MATRIX: {%d, %d, %d, %d, %d}",
+        TString::Format("NIM: {%d, %d, %d, %d, %d}  MATRIX: {%d, %d, %d, %d, %d}",
             _sqevent->get_trigger(SQEvent::NIM1),
             _sqevent->get_trigger(SQEvent::NIM2),
             _sqevent->get_trigger(SQEvent::NIM3),
@@ -444,7 +445,7 @@ void PHEventDisplay::draw_default(PHCompositeNode *topNode)
             _sqevent->get_trigger(SQEvent::MATRIX3),
             _sqevent->get_trigger(SQEvent::MATRIX4),
             _sqevent->get_trigger(SQEvent::MATRIX5)
-            ), 0.55, 0.90);
+            ).Data(), 0.55, 0.90);
     ann->SetTextSize(0.04);
   }
 
