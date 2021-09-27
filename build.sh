@@ -93,6 +93,7 @@ else # 'all' or 'resume'
     packages/Display/display
     packages/Display/modules
     packages/Display/interface
+    packages/kTTHreads
     _macro_
 	)
   if [ $mode = 'resume' ] ; then
