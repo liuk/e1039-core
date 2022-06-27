@@ -1,4 +1,4 @@
-/// UploadChanMap.C:  Macro to upload the channel mapping from tsv file to MySQL DB.
+/// UploadChanMap.C:  Macro to upload the channel mapping from TSV file to MySQL DB.
 /**
  * Usage:
  * .L UploadChanMap.C
@@ -9,7 +9,6 @@ R__LOAD_LIBRARY(geom_svc)
 
 int UploadChanMap(const std::string type="taiwan", const std::string map_id="2019091301")
 {
-  gSystem->Load("libgeom_svc.so");
   ChanMapBase* map;
   if      (type == "taiwan") map = new ChanMapTaiwan();
   else if (type == "v1495" ) map = new ChanMapV1495 ();
@@ -21,7 +20,7 @@ int UploadChanMap(const std::string type="taiwan", const std::string map_id="201
   map->SetMapIDbyFile(map_id);
   map->ReadFromFile();
   //map->Print(cout);
-  map->WriteToLocalFile("output_for_check.tsv");
+  //map->WriteToLocalFile("output_for_check.tsv");
   map->WriteToDB();
   map->WriteRangeToDB();
   return 0;
@@ -29,7 +28,6 @@ int UploadChanMap(const std::string type="taiwan", const std::string map_id="201
 
 int CheckChanMap(const std::string type="taiwan", const int run=25000)
 {
-  gSystem->Load("libgeom_svc.so");
   ChanMapBase* map;
   if      (type == "taiwan") map = new ChanMapTaiwan();
   else if (type == "v1495" ) map = new ChanMapV1495 ();
@@ -48,7 +46,6 @@ int CheckChanMap(const std::string type="taiwan", const int run=25000)
 /// Test function to make a channel mapping by hand.
 int MakeChanMap()
 {
-  gSystem->Load("libgeom_svc.so");
   ChanMapTaiwan map;
 
   /// roc, board chan, det, ele

@@ -1,10 +1,9 @@
 /// Fun4MainDaq.C:  Fun4all macro to decode the MainDAQ data.
-#if ROOT_VERSION_CODE >= ROOT_VERSION(6,00,0)
 R__LOAD_LIBRARY(libinterface_main)
 R__LOAD_LIBRARY(libdecoder_maindaq)
 R__LOAD_LIBRARY(libonlmonserver)
 R__LOAD_LIBRARY(libpheve_modules)
-#endif
+R__LOAD_LIBRARY(libktracker)
 
 int Fun4MainDaq(const int run=46, const int nevent=0, const bool is_online=false)
 {
@@ -31,12 +30,15 @@ int Fun4MainDaq(const int run=46, const int nevent=0, const bool is_online=false
   string fn_out = oss.str();
   gSystem->mkdir(UtilOnline::GetDstFileDir().c_str(), true);
 
+  recoConsts* rc = recoConsts::instance();
+  rc->set_IntFlag("RUNNUMBER", run);
+
   OnlMonServer* se = OnlMonServer::instance();
   //se->Verbosity(1);
   se->SetOnline(is_online);
 
   Fun4AllEVIOInputManager *in = new Fun4AllEVIOInputManager("MainDaq");
-  in->Verbosity(2);
+  in->Verbosity(3);
   in->SetOnline(is_online);
   //if (is_online) in->PretendSpillInterval(20);
   in->fileopen(fn_in);
@@ -44,12 +46,13 @@ int Fun4MainDaq(const int run=46, const int nevent=0, const bool is_online=false
 
   se->registerSubsystem(new DbUpRun());
   se->registerSubsystem(new DbUpSpill());
-  //se->registerSubsystem(new CalibInTime());
+  //se->registerSubsystem(new CalibHodoInTime());
   se->registerSubsystem(new CalibMergeH4());
-  //se->registerSubsystem(new CalibXT());
+  //se->registerSubsystem(new CalibDriftDist());
 
   if (use_onlmon) { // Register the online-monitoring clients
     if (is_online) se->StartServer();
+    //OnlMonComm::instance()->SetMaxNumSelSpills(600); // default = 600
     se->registerSubsystem(new OnlMonMainDaq());
     se->registerSubsystem(new OnlMonTrigSig());
     se->registerSubsystem(new OnlMonTrigNim());
@@ -84,28 +87,36 @@ int Fun4MainDaq(const int run=46, const int nevent=0, const bool is_online=false
     se->registerSubsystem(new OnlMonProp (OnlMonProp::P2));
   }
 
-  Fun4AllDstOutputManager *out = new Fun4AllDstOutputManager("DSTOUT", fn_out);
-  se->registerOutputManager(out);
+  Fun4AllDstOutputManager *om_dst = new Fun4AllDstOutputManager("DSTOUT", fn_out);
+  se->registerOutputManager(om_dst);
 
-  Fun4AllSpillDstOutputManager *out2 = new Fun4AllSpillDstOutputManager(UtilOnline::GetDstFileDir(), "DSTOUT2");
-  out2->SetSpillStep(100);
-  se->registerOutputManager(out2);
+  Fun4AllSpillDstOutputManager *om_spdst = new Fun4AllSpillDstOutputManager(UtilOnline::GetDstFileDir(), "SPILLDSTOUT");
+  om_spdst->SetSpillStep(100);
+  om_spdst->EnableDB();
+  se->registerOutputManager(om_spdst);
 
   if (use_evt_disp) {
     se->registerSubsystem(new EvtDispFilter(1000, 1)); // (step, max per spill)
 
     oss.str("");
-    oss << "/data2/e1039/onlmon/evt_disp";
+    oss << "/data2/e1039/online/evt_disp";
     gSystem->mkdir(oss.str().c_str(), true);
     oss << "/run_" << setfill('0') << setw(6) << run << "_evt_disp.root";
-    Fun4AllDstOutputManager *out3 = new Fun4AllDstOutputManager("DSTOUT3", oss.str());
-    out3->EnableRealTimeSave();
-    out3->AddEventSelector("EvtDispFilter");
-    se->registerOutputManager(out3);
+    Fun4AllDstOutputManager *om_eddst = new Fun4AllDstOutputManager("EDDST", oss.str());
+    om_eddst->EnableRealTimeSave();
+    om_eddst->AddEventSelector("EvtDispFilter");
+    se->registerOutputManager(om_eddst);
+  }
+
+  if (is_online) {
+    Fun4AllSRawEventOutputManager *om_sraw = new Fun4AllSRawEventOutputManager("/data2/e1039/online");
+    om_sraw->Verbosity(10);
+    se->registerOutputManager(om_sraw);
   }
 
   se->run(nevent);
   se->End();
+  se->PrintTimer();
   deco_stat.RunFinished(run, 0); // always "result = 0" for now.
   
   delete se;

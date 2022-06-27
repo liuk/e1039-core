@@ -15,7 +15,7 @@ test -z "$OFFLINE_MAIN" && echo "Need set 'OFFLINE_MAIN'.  Abort." && exit
 test -z "$MY_INSTALL"   && echo   "Need set 'MY_INSTALL'.  Abort." && exit
 
 src=$(dirname $(readlink -f $0))
-build=`pwd`/build
+build=$src/../core-build
 install=$MY_INSTALL
 
 mode=all
@@ -38,7 +38,7 @@ while getopts ":s:r:i:c:b:" OPT ; do
         c ) cmake_args=$OPTARG
             echo " - pass additional args $cmake_args to cmake"
             ;;
-        b ) build=$OPTARG
+        b ) build=$(readlink -m $OPTARG)
             echo "Build directory = $build"
             ;;
         * ) echo 'Unsupported option.  Abort.'
@@ -58,8 +58,8 @@ if [ $mode = 'single' ] || [ $mode = 'increment' ]; then
 else # 'all' or 'resume'
   declare -a packages=(
     packages/global_consts
-    packages/db_svc
     framework/phool
+    packages/db_svc
     packages/geom_svc
     framework/ffaobjects
     framework/fun4all
@@ -71,15 +71,16 @@ else # 'all' or 'resume'
     database/pdbcal/base
     database/PHParameter
     packages/PHGeometry
-    packages/PHField
+    packages/PHField 
+    generators/E906LegacyVtxGen
     generators/phhepmc
     generators/PHPythia8
-    simulation/g4decayer
     simulation/g4gdml
     simulation/g4main
     simulation/g4detectors
     simulation/g4eval
     generators/E906LegacyGen
+    packages/calibrator
     packages/evt_filter
     packages/dptrigger
     #packages/db2g4
@@ -87,6 +88,7 @@ else # 'all' or 'resume'
     packages/reco/SQGenFit
     packages/reco/kfitter
     packages/reco/ktracker
+    packages/kTThreads
     packages/embedding
     packages/alignment
     simulation/g4dst
@@ -103,6 +105,14 @@ else # 'all' or 'resume'
 	  unset packages[$II]
       done
   fi
+fi
+
+## Clean up $build when $mode = 'all'.  Otherwise the file deletion via
+## 'install_manifest.txt' causes a problem when you changed 
+## "$install" (via "setup-install.sh") but didn't clean up "$install".
+if [ $mode = 'all' -a -e $build ] ; then
+    echo "Clean up the build directory."
+    rm -rf $build
 fi
 
 for package in "${packages[@]}" ; do
@@ -122,7 +132,7 @@ for package in "${packages[@]}" ; do
       continue
   fi
 
-  echo $src/$package
+  echo "Package: $package"
   if [ -f $build/$package/install_manifest.txt ]; then
     cat $build/$package/install_manifest.txt | xargs rm -f
   fi

@@ -23,13 +23,13 @@ class PHPy8GenTrigger;
 
 namespace HepMC
 {
-class GenEvent;
-class Pythia8ToHepMC;
+  class GenEvent;
+  class Pythia8ToHepMC;
 };
 
 namespace Pythia8
 {
-class Pythia;
+  class Pythia;
 };
 
 class PHPythia8 : public SubsysReco
@@ -100,6 +100,18 @@ class PHPythia8 : public SubsysReco
     hepmc_helper.set_reuse_vertex(src_embedding_id);
   }
 
+  //! add interface for using legacy gen vertex; Abi
+  void enableLegacyVtxGen()
+  {
+    _legacy_vertexgenerator=true;
+    hepmc_helper.enableLegacyVtxGen();
+  }
+  double get_LegacyPARatio()
+  {
+    return hepmc_helper.get_LegacyPARatio();
+  }
+
+
   //! embedding ID for the event
   //! positive ID is the embedded event of interest, e.g. jetty event from pythia
   //! negative IDs are backgrounds, .e.g out of time pile up collisions
@@ -115,6 +127,7 @@ class PHPythia8 : public SubsysReco
   void save_integrated_luminosity(const bool b) { _save_integrated_luminosity = b; }
  private:
   int read_config(const char *cfg_file = 0);
+  int read_config_hybrid (const char *cfg_file1 = 0, const char *cfg_file2 =0);
   int create_node_tree(PHCompositeNode *topNode);
   double percent_diff(const double a, const double b) { return abs((a - b) / a); }
   int _eventcount;
@@ -124,13 +137,16 @@ class PHPythia8 : public SubsysReco
   bool _triggersOR;
   bool _triggersAND;
 
-// PYTHIA
+  // PYTHIA
 #ifndef __CINT__
   Pythia8::Pythia *_pythia;
+  Pythia8::Pythia *ppGen;    //!< Pythia pp generator
+  Pythia8::Pythia *pnGen;    //!< Pythia pn generator
 #endif
 
   std::string _configFile;
   std::vector<std::string> _commands;
+  
 
   // HepMC
   HepMC::Pythia8ToHepMC *_pythiaToHepMC;
@@ -143,6 +159,9 @@ class PHPythia8 : public SubsysReco
 
   //! pointer to data node saving the integrated luminosity
   PHGenIntegral *_integral_node;
+
+  //! legacy vtx gen flag
+  bool _legacy_vertexgenerator;
 };
 
 #endif /* __PHPYTHIA8_H__ */

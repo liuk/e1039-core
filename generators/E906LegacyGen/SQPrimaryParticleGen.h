@@ -15,6 +15,8 @@ from Kun to E1039 experiment in Fun4All framework
 #include <gsl/gsl_rng.h>
 #endif
 
+#include <string>
+
 #include <TGenPhaseSpace.h>
 #include <g4main/PHG4ParticleGeneratorBase.h>
 
@@ -46,41 +48,50 @@ class SQPrimaryVertexGen;
 class SQPrimaryParticleGen: public PHG4ParticleGeneratorBase
 {
 public:
-    SQPrimaryParticleGen();
+    SQPrimaryParticleGen(const std::string& name = "PrimaryGen");
     virtual ~SQPrimaryParticleGen();
 
     
     int Init(PHCompositeNode* topNode);
     int InitRun(PHCompositeNode* topNode);
+    int End(PHCompositeNode* topNode);
     int process_event(PHCompositeNode* topNode);
     //void GeneratePrimaries(G4Event* anEvent);
 
     //!Various generators
     //@{
-    int generateDrellYan(TVector3 vtx, const double pARatio, double luminosity);
-    int generateJPsi(TVector3 vtx, const double pARatio, double luminosity);
-    int generatePsip(TVector3 vtx, const double pARatio, double luminosity);
+    int generateDrellYan(const TVector3& vtx, const double pARatio, double luminosity);
+    int generateJPsi(const TVector3& vtx, const double pARatio, double luminosity);
+    int generatePsip(const TVector3& vtx, const double pARatio, double luminosity);
     // void generateDarkPhotonFromEta();
-    int generatePythia(TVector3 vtx, const double pARatio);
+    int generatePythia(const TVector3& vtx, const double pARatio);
     //int generateCustomDimuon(PHCompositeNode *topNode, TVector3 vtx, const double pARatio);
   
     //@}
 
     //!Dimuon phase space generator
-     bool generateDimuon(double mass, double xF);
+    bool generateDimuon(double mass, double xF);
 
     //swith for the generators; Abi
     //@
-    void enablePythia(){_Pythia = true;}
+    void enablePythia(){_PythiaGen = true;}
     void enableCustomDimuon(){_CustomDimuon = true;}
     void enableDrellYanGen(){_DrellYanGen = true;}
     void enableJPsiGen(){_JPsiGen = true;}
     void enablePsipGen(){_PsipGen = true;}
 
+    void set_pdfset(const std::string name) { _pdfset = name; }
+
     void set_pT0DY    (const double val) { _pT0DY     = val; }
     void set_pTpowDY  (const double val) { _pTpowDY   = val; }
     void set_pT0JPsi  (const double val) { _pT0JPsi   = val; }
     void set_pTpowJPsi(const double val) { _pTpowJPsi = val; }
+
+    //! config file for pythia
+    void set_config_file(const char *cfg_file)
+    {
+     if (cfg_file) _configFile = cfg_file; 
+    }
 
     void set_xfRange(const double xmin, const double xmax){
       xfMin = xmin;
@@ -94,9 +105,11 @@ public:
 
     double CrossSectionDrellYan(const double mass, const double xF, const double pARatio);
     double CrossSectionDrellYan(const double mass, const double xF, const double x1, const double x2, const double pARatio);
+    double CrossSectionJPsi(const double xF);
+    double CrossSectionPsip(const double xF);
 
  private:
-    bool _Pythia;
+    bool _PythiaGen;
     bool _CustomDimuon;
     bool _DrellYanGen;
     bool _JPsiGen;
@@ -108,20 +121,23 @@ public:
     SQMCEvent* _mcevt; //< An output node
     SQDimuonVector* _vec_dim; //< An output node
     PHGenIntegral *_integral_node; //< An output node
-
+    
     SQDimuon* _dim_gen; //< To hold the kinematics of a dimuon generated
 
     //Pythia generator
     Pythia8::Pythia ppGen;    //!< Pythia pp generator
     Pythia8::Pythia pnGen;    //!< Pythia pn generator
+    Pythia8::Pythia _Pythia;
+   //!config for pythia generator ; Abi
+    std::string _configFile;
+    int read_config(const char *cfg_file = 0);
 
-  
     //!ROOT phase space generator
     TGenPhaseSpace phaseGen;
 
-
     //!PDFs
-    LHAPDF::PDF* pdf;
+    std::string  _pdfset;
+    LHAPDF::PDF* _pdf;
 
     // Parameters (being moved from DPGEN)
     double _pT0DY;
@@ -130,7 +146,6 @@ public:
     double _pTpowJPsi;
   
     //some initializations
-  
     double massMin = 0.22;
     double massMax = 10.;
     double x1Min = 0.;
@@ -144,8 +159,8 @@ public:
     double zOffsetMin = -1.;
     double zOffsetMax = 1.;
 
-    void InsertMuonPair(TVector3& vtx);
-    void InsertEventInfo(double xsec, double weight, TVector3& vtx);
+    void InsertMuonPair(const TVector3& vtx);
+    void InsertEventInfo(const double xsec, const double weight, const TVector3& vtx);
 
     double _n_gen_acc_evt; //< N of generator-accepted events
     double _n_proc_evt; //< N of processed events

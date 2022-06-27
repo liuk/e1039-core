@@ -1,13 +1,14 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <TSystem.h>
 #include "UtilOnline.h"
 using namespace std;
 
 std::string UtilOnline::m_dir_end     = "/seaquest/e906daq/coda/data/END";
 std::string UtilOnline::m_dir_coda    = "/localdata/codadata"; // could be "/data3/data/mainDAQ" or "/data2/e1039/codadata".
 std::string UtilOnline::m_dir_dst     = "/data2/e1039/dst";
-std::string UtilOnline::m_dir_eddst   = "/data2/e1039/onlmon/evt_disp";
+std::string UtilOnline::m_dir_eddst   = "/data2/e1039/online/evt_disp";
 std::string UtilOnline::m_dir_onlmon  = "/data2/e1039/onlmon/plots";
 std::string UtilOnline::m_sch_maindaq = "user_e1039_maindaq";
 
@@ -16,6 +17,36 @@ void UtilOnline::UseOutputLocationForDevel()
   m_dir_dst     = "/data2/e1039/dst-devel";
   m_dir_onlmon  = "/data2/e1039/onlmon/plots-devel";
   m_sch_maindaq = "user_e1039_maindaq_devel";
+}
+
+void UtilOnline::SetEndFileDir(const std::string dir)
+{
+  m_dir_end = gSystem->ExpandPathName(dir.c_str());
+}
+
+void UtilOnline::SetCodaFileDir(const std::string dir)
+{
+  m_dir_coda = gSystem->ExpandPathName(dir.c_str());
+}
+
+void UtilOnline::SetDstFileDir(const std::string dir)
+{
+  m_dir_dst = gSystem->ExpandPathName(dir.c_str());
+}
+
+void UtilOnline::SetEDDstFileDir(const std::string dir)
+{
+  m_dir_eddst = gSystem->ExpandPathName(dir.c_str());
+}
+
+void UtilOnline::SetOnlMonDir(const std::string dir)
+{
+  m_dir_onlmon = gSystem->ExpandPathName(dir.c_str());
+}
+
+void UtilOnline::SetSchemaMainDaq(const std::string sch)
+{
+  m_sch_maindaq = sch; 
 }
 
 /// Convert the name of a Coda file to its run number.

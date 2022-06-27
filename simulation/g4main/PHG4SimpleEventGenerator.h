@@ -11,7 +11,11 @@
 
 class PHG4InEvent;
 class PHCompositeNode;
+class SQEvent;
+class SQMCEvent;
+class SQPrimaryVertexGen;
 
+/// Event generator to generate a set of particles under a condition of the vertex and the momentum.
 class PHG4SimpleEventGenerator : public PHG4ParticleGeneratorBase {
 
 public:
@@ -24,6 +28,7 @@ public:
 
   int InitRun(PHCompositeNode *topNode);
   int process_event(PHCompositeNode *topNode);
+  int End(PHCompositeNode *topNode);
 
   //! interface for adding particles by name
   void add_particles(const std::string &name, const unsigned int count);
@@ -73,6 +78,8 @@ public:
 			const double z_min, const double z_max
 			);
 
+   //! Enable legacy vertex gen
+   void enableLegacyVtxGen() { _legacy_vertexgenerator = true; } //Abi
 
 private:
 
@@ -111,8 +118,13 @@ private:
   double _px_min, _px_max;
   double _py_min, _py_max;
   double _pz_min, _pz_max;
-
+  int    _eventcount;
   PHG4InEvent* _ineve;
+  SQEvent* _evt; //< An output node
+  SQMCEvent* _mcevt; //< An output node
+
+  bool _legacy_vertexgenerator;
+  SQPrimaryVertexGen* _vertexGen;
 };
 
 #endif

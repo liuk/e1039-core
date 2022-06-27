@@ -2,6 +2,7 @@
 
 #include "KalmanFastTracking.h"
 #include "EventReducer.h"
+#include "UtilSRawEvent.h"
 
 #include <phfield/PHFieldConfig_v3.h>
 #include <phfield/PHFieldUtility.h>
@@ -49,6 +50,7 @@ SQReco::SQReco(const std::string& name):
   SubsysReco(name),
   _input_type(SQReco::E1039),
   _fitter_type(SQReco::KFREF),
+  _output_list_idx(0),
   _enable_eval(false),
   _eval_file_name("eval.root"),
   _eval_tree(nullptr),
@@ -73,6 +75,7 @@ SQReco::SQReco(const std::string& name):
   _rawEvent(nullptr),
   _recEvent(nullptr),
   _recTrackVec(nullptr),
+  _use_geom_io_node(false),
   _geom_file_name(""),
   _t_geo_manager(nullptr)
 {
@@ -108,11 +111,7 @@ int SQReco::InitRun(PHCompositeNode* topNode)
   ret = InitGeom(topNode);
   if(ret != Fun4AllReturnCodes::EVENT_OK) return ret;
 
-  //Init track finding
- // _fastfinder = new KalmanFastTracking(_phfield, _t_geo_manager, false);
-  _fastfinder = new KalmanFastTracking(_phfield, _t_geo_manager, _enable_KF);///Abi (Don't we turn on enable_kF ?)
-
-  _fastfinder->Verbosity(Verbosity());
+  InitFastTracking();
 
   if(_evt_reducer_opt == "none")  //Meaning we disable the event reducer
   {
@@ -203,22 +202,85 @@ int SQReco::InitGeom(PHCompositeNode* topNode)
     }
   }
 
-  PHGeomTGeo* dstGeom = PHGeomUtility::GetGeomTGeoNode(topNode, true); //hacky way to bypass PHGeoUtility's lack of exception throwing
-  if(!dstGeom->isValid())
+  if (_geom_file_name != "")
   {
-    if(_geom_file_name == "") return Fun4AllReturnCodes::ABORTEVENT;
-
     if(Verbosity() > 1) std::cout << "SQReco::InitGeom - create geom from " << _geom_file_name << std::endl;
+    if (_use_geom_io_node)
+    {
+      std::cout << "SQReco::InitGeom - Both 'geom_file_name' and 'use_geom_io_node' are active.  Use only one." << std::endl;
+      return Fun4AllReturnCodes::ABORTEVENT;
+    }
     int ret = PHGeomUtility::ImportGeomFile(topNode, _geom_file_name);
     if(ret != Fun4AllReturnCodes::EVENT_OK) return ret;
   }
+  else if (_use_geom_io_node)
+  {
+    if(Verbosity() > 1) std::cout << "SQReco::InitGeom - use geom from RUN node tree." << std::endl;
+    PHGeomTGeo* node = PHGeomUtility::LoadFromIONode(topNode);
+    if (! node)
+    {
+      std::cout << "SQReco::InitGeom - Failed at loading the GEOMETRY_IO node." << std::endl;
+      return Fun4AllReturnCodes::ABORTEVENT;
+    }
+  }
   else
   {
-    if(Verbosity() > 1) std::cout << "SQReco::InitGeom - use geom from NodeTree." << std::endl;
+    if(Verbosity() > 1) std::cout << "SQReco::InitGeom - use geom from PAR node tree." << std::endl;
+    PHGeomTGeo* dstGeom = PHGeomUtility::GetGeomTGeoNode(topNode, true); //hacky way to bypass PHGeoUtility's lack of exception throwing
+    if(!dstGeom->isValid())
+    {
+      std::cout << "SQReco::InitGeom - Failed at loading the GEOMETRY node." << std::endl;
+      return Fun4AllReturnCodes::ABORTEVENT;
+    }
   }
 
   _t_geo_manager = PHGeomUtility::GetTGeoManager(topNode);
   return Fun4AllReturnCodes::EVENT_OK;
+}
+
+int SQReco::InitFastTracking()
+{
+  _fastfinder = new KalmanFastTracking(_phfield, _t_geo_manager, false);
+
+  _fastfinder->Verbosity(Verbosity());
+
+  if (_output_list_idx > 0) _fastfinder->setOutputListIndex(_output_list_idx);
+  return 0;
+}
+
+void SQReco::ProcessEventPrep()
+{
+  if(is_eval_enabled()) ResetEvalVars();
+  if(is_eval_dst_enabled()) _tracklet_vector->clear();
+
+  if(_input_type == SQReco::E1039) _rawEvent = BuildSRawEvent();
+
+  if(Verbosity() > Fun4AllBase::VERBOSITY_A_LOT) 
+  {
+    LogInfo("SRawEvent before the Reducer");
+    _rawEvent->identify();
+  }
+
+  if(_eventReducer != nullptr) 
+  {
+    _eventReducer->reduceEvent(_rawEvent);
+    if(_input_type == SQReco::E1039) updateHitInfo(_rawEvent);
+  }
+
+  if(Verbosity() > Fun4AllBase::VERBOSITY_A_LOT) 
+  {
+    LogInfo("SRawEvent after the Reducer");
+    _rawEvent->identify();
+  }
+}
+
+void SQReco::ProcessEventFinish()
+{
+  if(_input_type == SQReco::E1039) {
+    delete _rawEvent;
+    _rawEvent = 0;
+  }
+  ++_event;
 }
 
 int SQReco::updateHitInfo(SRawEvent* sraw_event) 
@@ -247,98 +309,23 @@ SRawEvent* SQReco::BuildSRawEvent()
   _m_hitID_idx.clear();
   _m_trghitID_idx.clear();
 
-  int run_id   = 0;
-  int spill_id = 0;
-  int event_id = _event;
-  if(_event_header) 
+  if(!UtilSRawEvent::SetEvent(sraw_event, _event_header))
   {
-    run_id   = _event_header->get_run_id();
-    spill_id = _event_header->get_spill_id();
-    event_id = _event_header->get_event_id();
+    sraw_event->setEventInfo(0, 0, _event); // overwrite event ID
   }
-  sraw_event->setEventInfo(run_id, spill_id, event_id);
-
-  //Trigger setting - either from trigger emulation or TS, default to 0
-  int triggers[10];
-  for(int i = SQEvent::NIM1; i <= SQEvent::MATRIX5; ++i)
-  {
-    if(_event_header)
-      triggers[i] = _event_header->get_trigger(static_cast<SQEvent::TriggerMask>(i));
-    else
-      triggers[i] = 0;
-  }
-  sraw_event->setTriggerBits(triggers);
 
   //Get target position
-  int targetPos = 0;
-  if(_spill_map) 
+  if(_spill_map)
   {
-    SQSpill* spill = _spill_map->get(spill_id);
-    if(spill) 
-    {
-      targetPos = spill->get_target_pos();
-    }
+    UtilSRawEvent::SetSpill(sraw_event, _spill_map->get( sraw_event->getSpillID() ));
   }
-  sraw_event->setTargetPos(1);
 
   //Get beam information - QIE -- not implemented yet
 
   //Get trigger hits - TriggerHit
-  if(_triggerhit_vector) 
-  {
-    for(size_t idx = 0; idx < _triggerhit_vector->size(); ++idx) 
-    {
-      SQHit* sq_hit = _triggerhit_vector->at(idx);
-      _m_trghitID_idx[sq_hit->get_hit_id()] = idx;
+  UtilSRawEvent::SetTriggerHit(sraw_event, _triggerhit_vector, &_m_trghitID_idx);
+  UtilSRawEvent::SetHit       (sraw_event, _hit_vector       , &_m_hitID_idx);
 
-      Hit h;
-      h.index = sq_hit->get_hit_id();
-      h.detectorID = sq_hit->get_detector_id();
-      h.elementID = sq_hit->get_element_id();
-      h.tdcTime = sq_hit->get_tdc_time();
-      h.driftDistance = fabs(sq_hit->get_drift_distance()); //MC L-R info removed here
-      h.pos = sq_hit->get_pos();
-
-      if(sq_hit->is_in_time()) h.setInTime();
-      sraw_event->insertTriggerHit(h);
-    }
-  }
-
-  for(size_t idx = 0; idx < _hit_vector->size(); ++idx) 
-  {
-    SQHit* sq_hit = _hit_vector->at(idx);
-
-    Hit h;
-    h.index = sq_hit->get_hit_id();
-    h.detectorID = sq_hit->get_detector_id();
-    h.elementID = sq_hit->get_element_id();
-    h.tdcTime = sq_hit->get_tdc_time();
-    h.driftDistance = fabs(sq_hit->get_drift_distance()); //MC L-R info removed here
-    h.pos = sq_hit->get_pos();
-
-    if(sq_hit->is_in_time()) h.setInTime();
-    sraw_event->insertHit(h);
-
-    /* We should not need the following code, since all these logic are done in
-    // inside eventreducer
-    //TODO calibration
-    if(p_geomSvc->isCalibrationLoaded())
-    { 
-      if((h.detectorID >= 1 && h.detectorID <= nChamberPlanes) || (h.detectorID >= nChamberPlanes+nHodoPlanes+1))
-      {
-        h.setInTime(p_geomSvc->isInTime(h.detectorID, h.tdcTime));
-        if(h.isInTime()) h.driftDistance = p_geomSvc->getDriftDistance(h.detectorID, h.tdcTime);
-      }
-    }
-
-    // FIXME just for the meeting, figure this out fast!
-    if(!_triggerhit_vector and h.detectorID >= 31 and h.detectorID <= 46) {
-      sraw_event->insertTriggerHit(h);
-    }
-    */
-  }
-
-  sraw_event->reIndex(true);
   return sraw_event;
 }
 
@@ -346,52 +333,7 @@ int SQReco::process_event(PHCompositeNode* topNode)
 {
   LogDebug("Entering SQReco::process_event: " << _event);
 
-  if(is_eval_enabled()) ResetEvalVars();
-  if(_input_type == SQReco::E1039)
-  {
-    if(!_event_header) 
-    {
-      if(Verbosity() > 2) LogDebug("!_event_header");
-      //return Fun4AllReturnCodes::ABORTRUN;
-    }
-
-    if(!_spill_map) 
-    {
-      if(Verbosity() > 2) LogDebug("!_spill_map");
-      //return Fun4AllReturnCodes::ABORTRUN;
-    }
-
-    if(!_hit_vector) 
-    {
-      if(Verbosity() > 2) LogDebug("!_hit_vector");
-      return Fun4AllReturnCodes::ABORTEVENT;
-    }
-  }
-
-  std::unique_ptr<SRawEvent> up_raw_event;
-  if(_input_type == SQReco::E1039) 
-  {
-    up_raw_event = std::unique_ptr<SRawEvent>(BuildSRawEvent());
-    _rawEvent = up_raw_event.get();
-  }
-
-  if(Verbosity() > Fun4AllBase::VERBOSITY_A_LOT) 
-  {
-    LogInfo("SRawEvent before the Reducer");
-    _rawEvent->identify();
-  }
-
-  if(_eventReducer != nullptr) 
-  {
-    _eventReducer->reduceEvent(_rawEvent);
-    if(_input_type == SQReco::E1039) updateHitInfo(_rawEvent);
-  }
-
-  if(Verbosity() > Fun4AllBase::VERBOSITY_A_LOT) 
-  {
-    LogInfo("SRawEvent after the Reducer");
-    _rawEvent->identify();
-  }
+  ProcessEventPrep();
 
   int finderstatus = _fastfinder->setRawEvent(_rawEvent);
   if(_legacy_rec_container) 
@@ -457,7 +399,8 @@ int SQReco::process_event(PHCompositeNode* topNode)
   
   if(is_eval_enabled() && nTracklets > 0) _eval_tree->Fill();
 
-  ++_event;
+  ProcessEventFinish();
+
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
@@ -590,10 +533,12 @@ int SQReco::MakeNodes(PHCompositeNode* topNode)
 
   if(_legacy_rec_container)
   {
-    _recEvent = new SRecEvent();
-    PHIODataNode<PHObject>* recEventNode = new PHIODataNode<PHObject>(_recEvent, "SRecEvent", "PHObject");
-    eventNode->addNode(recEventNode);
-    if(Verbosity() >= Fun4AllBase::VERBOSITY_SOME) LogInfo("DST/SRecEvent Added");
+    _recEvent = findNode::getClass<SRecEvent>(topNode, "SRecEvent"); // Could exist when the tracking is re-done.
+    if(!_recEvent) {
+      _recEvent = new SRecEvent();
+      eventNode->addNode(new PHIODataNode<PHObject>(_recEvent, "SRecEvent", "PHObject"));
+      if(Verbosity() >= Fun4AllBase::VERBOSITY_SOME) LogInfo("DST/SRecEvent Added");
+    }
   }
   else
   {
@@ -605,11 +550,13 @@ int SQReco::MakeNodes(PHCompositeNode* topNode)
 
   if(_enable_eval_dst)
   {
-    _tracklet_vector = new TrackletVector();
-    _tracklet_vector->SplitLevel(99);
-    PHIODataNode<PHObject>* trackletVecNode = new PHIODataNode<PHObject>(_tracklet_vector, "TrackletVector", "PHObject");
-    eventNode->addNode(trackletVecNode);
-    if(Verbosity() >= Fun4AllBase::VERBOSITY_SOME) LogInfo("DST/TrackletVector Added");
+    _tracklet_vector = findNode::getClass<TrackletVector>(topNode, "TrackletVector"); // Could exist when the tracking is re-done.
+    if(!_tracklet_vector) {
+      _tracklet_vector = new TrackletVector();
+      _tracklet_vector->SplitLevel(99);
+      eventNode->addNode(new PHIODataNode<PHObject>(_tracklet_vector, "TrackletVector", "PHObject"));
+      if(Verbosity() >= Fun4AllBase::VERBOSITY_SOME) LogInfo("DST/TrackletVector Added");
+    }
   }
 
   return Fun4AllReturnCodes::EVENT_OK;

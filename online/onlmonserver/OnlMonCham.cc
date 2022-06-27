@@ -10,6 +10,7 @@
 #include <phool/PHIODataNode.h>
 #include <phool/getClass.h>
 #include <geom_svc/GeomSvc.h>
+#include <UtilAna/UtilSQHit.h>
 #include <UtilAna/UtilHist.h>
 #include "OnlMonCham.h"
 using namespace std;
@@ -34,18 +35,18 @@ int OnlMonCham::InitOnlMon(PHCompositeNode* topNode)
 int OnlMonCham::InitRunOnlMon(PHCompositeNode* topNode)
 {
   const double DT = 40/9.0; // 4/9 ns per single count of Taiwan TDC
-  int    NT = 150;
-  double T0 = 110.5*DT;
-  double T1 = 260.5*DT;
+  int    NT = 300;
+  double T0 = 150.5*DT;
+  double T1 = 450.5*DT;
 
   GeomSvc* geom = GeomSvc::instance();
   string name_regex = "";
   switch (m_type) {
   case D0 :  name_regex = "^D0" ;  break;
   case D1 :  name_regex = "^D1" ;  break;
-  case D2 :  name_regex = "^D2" ;  NT=150; T0=100.5*DT; T1=250.5*DT;  break;
-  case D3p:  name_regex = "^D3p";  NT=150; T0=100.5*DT; T1=250.5*DT;  break;
-  case D3m:  name_regex = "^D3m";  NT=150; T0=100.5*DT; T1=250.5*DT;  break;
+  case D2 :  name_regex = "^D2" ;  NT=300; T0=100.5*DT; T1=400.5*DT;  break;
+  case D3p:  name_regex = "^D3p";  NT=300; T0= 50.5*DT; T1=350.5*DT;  break;
+  case D3m:  name_regex = "^D3m";  NT=300; T0=100.5*DT; T1=400.5*DT;  break;
   }
   vector<int> list_det_id = geom->getDetectorIDs(name_regex);
   if (list_det_id.size() == 0) {
@@ -82,15 +83,17 @@ int OnlMonCham::InitRunOnlMon(PHCompositeNode* topNode)
 
 int OnlMonCham::ProcessEventOnlMon(PHCompositeNode* topNode)
 {
-  SQEvent*     event_header = findNode::getClass<SQEvent    >(topNode, "SQEvent");
-  SQHitVector*      hit_vec = findNode::getClass<SQHitVector>(topNode, "SQHitVector");
-  if (!event_header || !hit_vec) return Fun4AllReturnCodes::ABORTEVENT;
+  SQEvent*     evt     = findNode::getClass<SQEvent    >(topNode, "SQEvent");
+  SQHitVector* hit_vec = findNode::getClass<SQHitVector>(topNode, "SQHitVector");
+  if (!evt || !hit_vec) return Fun4AllReturnCodes::ABORTEVENT;
 
-  for (SQHitVector::ConstIter it = hit_vec->begin(); it != hit_vec->end(); it++) {
-    int pl = (*it)->get_detector_id() - m_pl0;
-    if (pl < 0 || pl >= N_PL) continue;
-    h1_ele [pl]->Fill((*it)->get_element_id());
-    h1_time[pl]->Fill((*it)->get_tdc_time  ());
+  for (int pl = 0; pl < N_PL; pl++) {
+    int det_id = pl + m_pl0;
+    auto vec = UtilSQHit::FindHitsFast(evt, hit_vec, det_id);
+    for (auto it = vec->begin(); it != vec->end(); it++) {
+      h1_ele [pl]->Fill((*it)->get_element_id());
+      h1_time[pl]->Fill((*it)->get_tdc_time  ());
+    }
   }
   
   return Fun4AllReturnCodes::EVENT_OK;

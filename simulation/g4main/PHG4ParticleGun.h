@@ -7,7 +7,13 @@
 #include <TGeoManager.h>
 #include <phgeom/PHGeomUtility.h>
 class PHG4Particle;
+class SQPrimaryVertexGen;
 
+/// [Obsolete] A simple event generator.
+/**
+ * It generates events that contain a single particle.
+ * You had better use `PHG4SimpleEventGenerator` since it is upward compatible.
+ */
 class PHG4ParticleGun: public PHG4ParticleGeneratorBase
 {
  public:
@@ -28,14 +34,15 @@ class PHG4ParticleGun: public PHG4ParticleGeneratorBase
 		_beam_profile = beamProfile;
 	}
 	
-
+   ///Enable legacy vertex gen
+   void enableLegacyVtxGen() { _legacy_vertexgenerator = true; }
 	
  protected:
 
   TF2* _beam_profile;
-  // Abi
-  //bool _legacy_vertexgenerator;
-  
+ 
+  bool _legacy_vertexgenerator;
+  SQPrimaryVertexGen* _vertexGen;
 };
 
 #endif

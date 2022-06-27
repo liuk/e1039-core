@@ -25,8 +25,8 @@ if [ -z "$1" ] ; then
     exit 1
 elif [ "X$1" = 'Xauto' ] ; then
     DIR_INST=$(readlink -f $DIR_SCRIPT/../../core-inst)
-elif [ "X$1" = 'Xonline' ] ; then
-    DIR_INST=/data2/e1039/core/new
+elif [ "X$1" = 'Xosg-user' ] ; then
+    DIR_INST=/e906/app/software/osg/users/$USER/e1039/core
 else
     DIR_INST=$(readlink -m "$1")
 fi
@@ -36,15 +36,18 @@ echo "  $DIR_INST"
 ##
 ## Create the setup script
 ##
-mkdir -p $DIR_INST
+mkdir -p $DIR_INST/script
 \cp $DIR_SCRIPT/this-core-org.sh $DIR_INST/this-core.sh
+\cp $DIR_SCRIPT/exec-decoder.sh $DIR_INST/script/
 
 ##
 ## Check and set up the parent environments.
 ##
 if   [ ${HOSTNAME:0:11} = 'seaquestdaq' -o \
+       ${HOSTNAME:0:9}  = 'e1039gat1' -o \
        ${HOSTNAME:0:10} = 'e1039prod1' -o \
-       ${HOSTNAME:0:12} = 'spinquestana' ] ; then
+       ${HOSTNAME:0:12} = 'spinquestana' -o \
+       ${HOSTNAME:0:13} = 'e1039trackcpu' ] ; then
     echo "Use the environment for seaquestdaq/spinquestana."
     {
 	echo 'export  E1039_ROOT=/data2/e1039'
