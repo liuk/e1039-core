@@ -1,7 +1,9 @@
 #include <iostream>
+#include <fstream>
 
 #include <TFile.h>
 #include <TTree.h>
+#include <TH1D.h>
 #include <TClonesArray.h>
 
 #include <GlobalConsts.h>
@@ -15,15 +17,17 @@ using namespace std;
 int main(int argc, char* argv[])
 {
   recoConsts* rc = recoConsts::instance();
-  rc->set_DoubleFlag("FMAGSTR", -1.054);
+  rc->init("cosmic");
+  rc->set_DoubleFlag("FMAGSTR", 0.);
   rc->set_DoubleFlag("KMAGSTR", 0.);
-  // rc->set_CharFlag("AlignmentMille", "$E1039_RESOURCE/alignment/run3/align_mille.txt");
+  rc->set_CharFlag("AlignmentMille", argv[2]);
   // rc->set_CharFlag("AlignmentHodo", "$E1039_RESOURCE/alignment/run3/alignment_hodo.txt");
   // rc->set_CharFlag("AlignmentProp", "$E1039_RESOURCE/alignment/run3/alignment_prop.txt");
   // rc->set_CharFlag("Calibration", "$E1039_RESOURCE/alignment/run3/calibration.txt");
   // rc->set_CharFlag("Geometry", "geometry_G17_run3");
-  rc->set_CharFlag("MySQLURL", "mysql://localhost");
+  // rc->set_CharFlag("MySQLURL", "mysql://localhost");
   rc->set_BoolFlag("KMAG_ON", false);
+  rc->set_BoolFlag("COARSE_MODE", true);
   rc->Print();
 
   GeomSvc::UseDbSvc(true);
@@ -41,6 +45,7 @@ int main(int argc, char* argv[])
   SQMillepede* mp = new SQMillepede();
   mp->initMillepede();
   mp->enableEval("alignment_eval.root");
+  mp->enableRefit();
 
   int nEvents = dataTree->GetEntries();
   for(int i = 0; i < nEvents; ++i)
@@ -50,9 +55,12 @@ int main(int argc, char* argv[])
     int nTracklets = tracklets->GetEntries();
     for(int j = 0; j < nTracklets; ++j)
     {
-      cout << i << "   " << j << endl;
       Tracklet* tracklet = (Tracklet*)tracklets->At(j);
-      tracklet->print();
+      if(tracklet->stationID != 6) continue;
+      if(tracklet->getNHits() < 11) continue;
+      if(tracklet->getChisq() > 10.) continue;
+
+      //tracklet->print();
       mp->addTrack(tracklet);
     }
 
@@ -60,12 +68,13 @@ int main(int argc, char* argv[])
   }
 
   // mp->globalFit();
+  fstream fout(argv[3], ios::out);
   for(int i = 1; i <= nChamberPlanes; ++i)
   {
-    cout << i << "  ";
-    for(int j = 0; j < 3; ++j) cout << mp->getDetParameter(i, j) << " +/- " << mp->getDetParaError(i, j) << "  ";
-    cout << endl;
+    cout << i << "  " << mp->getEvalHist(i)->GetMean() << endl;
+    fout << p_geomSvc->getPlane(i).deltaZ << "  " << p_geomSvc->getPlane(i).rotZ << "     " << p_geomSvc->getPlane(i).deltaW - 0.5*mp->getEvalHist(i)->GetMean() << "  " << p_geomSvc->getPlane(i).resolution << endl;
   }
+  fout.close();
 
   delete mp;
   return 0;

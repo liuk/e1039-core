@@ -10,6 +10,7 @@ class TH1D;
 class TString;
 class SQMPNode;
 class Tracklet;
+class SQTrackletFitter;
 
 ///Interface for cross-compilation with fortran millepede program
 extern "C"
@@ -81,6 +82,10 @@ public:
   void fillEvaluation();
   void closeEvaluation();
 
+  void enableRefit() { refit_enable = true; }
+
+  TH1D* getEvalHist(int detectorID) { return evalHist[detectorID-1]; }
+
 private:
   int globalId(int detectorID, int parID) { return (detectorID-1)*NPARPLAN + parID; }
 
@@ -91,6 +96,12 @@ private:
 
   // intermediate container
   std::vector<SQMPNode> nodes;
+
+  // whether we remove the hit of interest
+  bool refit_enable;
+
+  // tracklet fitter
+  SQTrackletFitter* trackletFitter;
 
   // evaluation output
   bool evalEnabled;

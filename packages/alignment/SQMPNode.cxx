@@ -65,11 +65,11 @@ SQMPNode::SQMPNode(SignedHit& hit_signed, Tracklet& trk):
 
   //Measurements
   meas = trk.residual[detectorID-1];
-  if(fabs(meas) > 1.5 )
-  {
-      flag = false;
-      return;
-  }
+  // if(fabs(meas) > 1.5 )
+  // {
+  //     flag = false;
+  //     return;
+  // }
 
   //Local parameters
   GeomSvc* p_geomSvc = GeomSvc::instance();

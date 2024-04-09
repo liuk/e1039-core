@@ -6,23 +6,26 @@
 #include <TH1D.h>
 
 #include <ktracker/FastTracklet.h>
+#include <ktracker/SQTrackletFitter.h>
 #include <geom_svc/GeomSvc.h>
 
 #include "SQMPNode.h"
-
 
 SQMillepede::SQMillepede():
   evalEnabled(false),
   evalNode(nullptr),
   evalFile(nullptr),
-  evalTree(nullptr)
+  evalTree(nullptr),
+  refit_enable(false)
 {
   for(int i = 0; i < nChamberPlanes; ++i) evalHist[i] = nullptr;
+  trackletFitter = new SQTrackletFitter(false);
 }
 
 SQMillepede::~SQMillepede()
 {
   closeEvaluation();
+  delete trackletFitter;
 }
 
 void SQMillepede::initMillepede()
@@ -50,9 +53,38 @@ void SQMillepede::addTrack(Tracklet* track)
   {
     if(iter->hit.index < 0) continue;
 
-    //TODO: may want to enable refit later
-    SQMPNode node(*iter, *track);
-    nodes.push_back(node);
+    if(!refit_enable)
+    {
+      SQMPNode node(*iter, *track);
+      nodes.push_back(node);
+    }
+    else
+    {
+      // create a temporary track object and disable the current hit
+      Tracklet trkfit = *track;
+      // std::cout << "----------------------------------------------" << std::endl;
+      // trkfit.print();
+      // trackletFitter->fit(trkfit);
+      // trkfit.print();
+
+      auto jter = trkfit.hits.begin();
+      for(; jter != trkfit.hits.end(); ++jter)
+      {
+        if(iter->hit.index == jter->hit.index)
+        {
+          jter->hit.index = -iter->hit.index;
+          break;
+        }
+      }
+      
+      trackletFitter->fit(trkfit);
+
+      jter->hit.index = iter->hit.index;
+      trkfit.calcChisq();
+
+      SQMPNode node(*jter, trkfit);
+      nodes.push_back(node);
+    }
   }
 
   addMilleTrack();
@@ -182,6 +214,4 @@ void SQMillepede::closeEvaluation()
   evalFile->Close();
 
   delete evalNode;
-  delete evalTree;
-  for(int i = 0; i < nChamberPlanes; ++i) delete evalHist[i];
 }

@@ -25,6 +25,8 @@ public:
 private:
   int GetNodes(PHCompositeNode* topNode);
 
+  bool acceptTrack(Tracklet* tracklet);
+
   TrackletVector* trackletVec;
 
   SQMillepede* mp;
