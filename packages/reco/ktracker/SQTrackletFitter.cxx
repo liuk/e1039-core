@@ -55,6 +55,12 @@ int SQTrackletFitter::fit(Tracklet& tracklet)
   tracklet.err_x0 = minimizer->Errors()[2];
   tracklet.err_y0 = minimizer->Errors()[3];
 
+  /// Avoid too-small error, which causes NaN in Tracklet::operator+().
+  if (tracklet.err_tx < 1e-6) tracklet.err_tx = 1e-6;
+  if (tracklet.err_ty < 1e-6) tracklet.err_ty = 1e-6;
+  if (tracklet.err_x0 < 1e-4) tracklet.err_x0 = 1e-4;
+  if (tracklet.err_y0 < 1e-4) tracklet.err_y0 = 1e-4;
+
   if(nParameters == 5)
   {
     tracklet.invP = minimizer->X()[4];
