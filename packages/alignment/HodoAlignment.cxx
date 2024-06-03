@@ -37,6 +37,23 @@ HodoAlignment::~HodoAlignment()
 
 int HodoAlignment::Init(PHCompositeNode* topNode)
 {
+  registerHodo("H1B");
+  registerHodo("H1T");
+  registerHodo("H1L");
+  registerHodo("H1R");
+  registerHodo("H2B");
+  registerHodo("H2T");
+  registerHodo("H2L");
+  registerHodo("H2R");
+  registerHodo("H3B");
+  registerHodo("H3T");
+  registerHodo("H4Y1L");
+  registerHodo("H4Y1R");
+  registerHodo("H4Y2L");
+  registerHodo("H4Y2R");
+  registerHodo("H4B");
+  registerHodo("H4T");
+
   return Fun4AllReturnCodes::EVENT_OK;
 }
 

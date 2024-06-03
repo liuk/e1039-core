@@ -73,7 +73,7 @@ public:
   void setDetParameter(int detectorID, int parID, float val);
   void setDetParaError(int detectorID, int parID, float val);
   void fixDetParameter(int detectorID, int parID, float val);
-  void fixDetectorPair(int detID1, int detID2, int parID);
+  void fixDetectorPair(int detID1,    int detID2, int parID);
 
   float getDetParameter(int detectorID, int parID) { return par_align[globalId(detectorID, parID)]; }
   float getDetParaError(int detectorID, int parID) { return err_align[globalId(detectorID, parID)]; }

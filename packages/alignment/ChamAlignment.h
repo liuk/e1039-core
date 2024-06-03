@@ -5,7 +5,6 @@
 #include <fun4all/SubsysReco.h>
 #include "SQMillepede.h"
 
-
 class TrackletVector;
 
 class ChamAlignment: public SubsysReco

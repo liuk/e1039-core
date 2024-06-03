@@ -46,11 +46,11 @@ int ChamAlignment::process_event(PHCompositeNode* topNode)
   for(int i = 0; i < nTracklets; ++i)
   {
     Tracklet* tracklet = trackletVec->at(i);
-    if(!acceptTrack(tracklet)) return;
+    if(!acceptTrack(tracklet)) continue;
 
     mp->addTrack(tracklet);
   }
-
+ 
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
@@ -61,6 +61,12 @@ int ChamAlignment::End(PHCompositeNode* topNode)
 
 bool ChamAlignment::acceptTrack(Tracklet* tracklet)
 {
+  if(tracklet->getNHits() < 16)  return false;
+  if(tracklet->getProb()  < 0.9) return false;
+  if(1./tracklet->invP    < 25.) return false; 
+  if(fabs(tracklet->getExpPositionX(275.) > 10.)) return false;
+  if(fabs(tracklet->getExpPosErrorY(40.)  > 10.)) return false;
+
   return true;
 }
 
