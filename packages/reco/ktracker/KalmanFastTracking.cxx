@@ -13,6 +13,7 @@ Created: 05-28-2013
 #include <fun4all/Fun4AllBase.h>
 
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include <cmath>
 
@@ -67,13 +68,17 @@ namespace
     static double MERGE_THRES;
 
     //static flag of kmag on/off
-	static bool KMAG_ON;
+    static bool KMAG_ON;
+
+    //static flag to turn MU ID on/off
+    static bool REQUIRE_MUID;
 
     //running mode
     static bool MC_MODE;
     static bool COSMIC_MODE;
     static bool COARSE_MODE;
-
+    static std::string HIT_MASK_MODE;
+  
     //initialize global variables
     void initGlobalVariables()
     {
@@ -86,6 +91,8 @@ namespace
             KMAG_ON = rc->get_BoolFlag("KMAG_ON");
             COSMIC_MODE = rc->get_BoolFlag("COSMIC_MODE");
             COARSE_MODE = rc->get_BoolFlag("COARSE_MODE");
+            REQUIRE_MUID = rc->get_BoolFlag("REQUIRE_MUID");
+            HIT_MASK_MODE = rc->get_CharFlag("HIT_MASK_MODE");
 
             MaxHitsDC0 = rc->get_IntFlag("MaxHitsDC0");
             MaxHitsDC1 = rc->get_IntFlag("MaxHitsDC1");
@@ -120,7 +127,10 @@ namespace
     }
 }
 
-KalmanFastTracking::KalmanFastTracking(const PHField* field, const TGeoManager* geom, bool flag): verbosity(0), enable_KF(flag), outputListIdx(4)
+KalmanFastTracking::KalmanFastTracking(const PHField* field, const TGeoManager* geom, bool flag, const int verb)
+  : verbosity(verb)
+  , enable_KF(flag)
+  , outputListIdx(4)
 {
     using namespace std;
     initGlobalVariables();
@@ -347,30 +357,33 @@ KalmanFastTracking::KalmanFastTracking(const PHField* field, const TGeoManager* 
         slope_max[i] = costheta_plane[i]*TX_MAX + sintheta_plane[i]*TY_MAX;
         intersection_max[i] = costheta_plane[i]*X0_MAX + sintheta_plane[i]*Y0_MAX;
 
-#ifdef COARSE_MODE
-        resol_plane[i] = 3.*p_geomSvc->getPlaneSpacing(i)/sqrt(12.);
-#else
-        if(i <= 6)
+        if(COARSE_MODE)
         {
-            resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC0");
-        }
-        else if(i <= 12)
-        {
-            resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC1");
-        }
-        else if(i <= 18)
-        {
-            resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC2");
-        }
-        else if(i <= 24)
-        {
-            resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC3p");
+          resol_plane[i] = 3.*p_geomSvc->getPlaneSpacing(i)/sqrt(12.);
         }
         else
         {
-            resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC3m");
+          if(i <= 6)
+          {
+              resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC0");
+          }
+          else if(i <= 12)
+          {
+              resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC1");
+          }
+          else if(i <= 18)
+          {
+              resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC2");
+          }
+          else if(i <= 24)
+          {
+              resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC3p");
+          }
+          else
+          {
+              resol_plane[i] = recoConsts::instance()->get_DoubleFlag("RejectWinDC3m");
+          }
         }
-#endif
         spacing_plane[i] = p_geomSvc->getPlaneSpacing(i);
     }
 
@@ -436,13 +449,31 @@ int KalmanFastTracking::setRawEventPrep(SRawEvent* event_input)
     {
         //std::cout << "For station " << i << std::endl;
         hitIDs_mask[i].clear();
-        if(MC_MODE || COSMIC_MODE || rawEvent->isFPGATriggered())
+        if(HIT_MASK_MODE == "XY")
+        {
+            hitIDs_mask[i] = rawEvent->getHitsIndexInDetectors(detectorIDs_mask[i]);
+            if (verbosity >= 4) LogInfo("Mask XY");
+        }          
+        else if(HIT_MASK_MODE == "X" ||
+                HIT_MASK_MODE == "AUTO" && (MC_MODE || COSMIC_MODE || rawEvent->isFPGATriggered()))
         {
             hitIDs_mask[i] = rawEvent->getHitsIndexInDetectors(detectorIDs_maskX[i]);
+            if (verbosity >= 4) LogInfo("Mask X");
+        }
+        else if(HIT_MASK_MODE == "NONE")
+        {
+            if (verbosity >= 4) LogInfo("Mask NONE");
         }
         else
         {
             hitIDs_mask[i] = rawEvent->getHitsIndexInDetectors(detectorIDs_maskY[i]);
+            if (verbosity >= 4) LogInfo("Mask Y");
+        }
+        if (verbosity >= 4) {
+          std::ostringstream oss;
+          oss << "  ";
+          for (auto it = hitIDs_mask[i].begin(); it != hitIDs_mask[i].end(); it++) oss << " " << *it;
+          LogInfo(oss.str());
         }
 
         //for(std::list<int>::iterator iter = hitIDs_mask[i].begin(); iter != hitIDs_mask[i].end(); ++iter) std::cout << *iter << " " << hitAll[*iter].detectorID << " === ";
@@ -461,7 +492,7 @@ int KalmanFastTracking::setRawEventPrep(SRawEvent* event_input)
         hitIDs_muidHodoAid[i] = rawEvent->getHitsIndexInDetectors(detectorIDs_muidHodoAid[i]);
     }
 
-    if(!COARSE_MODE)
+    if(!COARSE_MODE && REQUIRE_MUID)
     {
         buildPropSegments();
         if(propSegs[0].empty() || propSegs[1].empty())
@@ -469,7 +500,7 @@ int KalmanFastTracking::setRawEventPrep(SRawEvent* event_input)
           if(verbosity >= 3) {
             LogInfo("Failed in prop tube segment building: " << propSegs[0].size() << ", " << propSegs[1].size());
           }
-            //return TFEXIT_FAIL_ROUGH_MUONID;
+          //return TFEXIT_FAIL_ROUGH_MUONID;
         }
     }
     return 0;
@@ -664,21 +695,24 @@ void KalmanFastTracking::buildBackPartialTracks()
                 if(fabs(a) > 2.*TX_MAX || fabs(b) > 2.*X0_MAX) continue;
 
                 //Project to proportional tubes to see if there is enough
-                int nPropHits = 0;
-                for(int i = 0; i < 4; ++i)
+                if(REQUIRE_MUID)
                 {
-                    double x_exp = a*z_mask[detectorIDs_muid[0][i] - nChamberPlanes - 1] + b;
-                    for(std::list<int>::iterator iter = hitIDs_muid[0][i].begin(); iter != hitIDs_muid[0][i].end(); ++iter)
-                    {
-                        if(fabs(hitAll[*iter].pos - x_exp) < 5.08)
-                        {
-                            ++nPropHits;
-                            break;
-                        }
-                    }
-                    if(nPropHits > 0) break;
+                  int nPropHits = 0;
+                  for(int i = 0; i < 4; ++i)
+                  {
+                      double x_exp = a*z_mask[detectorIDs_muid[0][i] - nChamberPlanes - 1] + b;
+                      for(std::list<int>::iterator iter = hitIDs_muid[0][i].begin(); iter != hitIDs_muid[0][i].end(); ++iter)
+                      {
+                          if(fabs(hitAll[*iter].pos - x_exp) < 5.08)
+                          {
+                              ++nPropHits;
+                              break;
+                          }
+                      }
+                      if(nPropHits > 0) break;
+                  }
+                  if(nPropHits == 0) continue;
                 }
-                if(nPropHits == 0) continue;
             }
 
             Tracklet tracklet_23 = (*tracklet2) + (*tracklet3);
@@ -1348,7 +1382,7 @@ bool KalmanFastTracking::acceptTracklet(Tracklet& tracklet)
     if(tracklet.stationID > nStations-2)
     {
         if(!COSMIC_MODE && !p_geomSvc->isInKMAG(tracklet.getExpPositionX(Z_KMAG_BEND), tracklet.getExpPositionY(Z_KMAG_BEND))) return false;
-        if(!(muonID_comp(tracklet) || muonID_search(tracklet))) return false;
+        if(REQUIRE_MUID && (!(muonID_comp(tracklet) || muonID_search(tracklet)))) return false;
     }
 
     //If everything is fine ...
@@ -1360,10 +1394,12 @@ bool KalmanFastTracking::acceptTracklet(Tracklet& tracklet)
 
 bool KalmanFastTracking::hodoMask(Tracklet& tracklet)
 {
-    //LogInfo(tracklet.stationID);
+    if (verbosity >= 3) LogInfo("hodoMask: " << tracklet.stationID);
+    if (HIT_MASK_MODE == "NONE") return true;
     int nHodoHits = 0;
     for(std::vector<int>::iterator stationID = stationIDs_mask[tracklet.stationID-1].begin(); stationID != stationIDs_mask[tracklet.stationID-1].end(); ++stationID)
     {
+        if (verbosity >= 3) LogInfo("stID=" << *stationID);
         bool masked = false;
         for(std::list<int>::iterator iter = hitIDs_mask[*stationID-1].begin(); iter != hitIDs_mask[*stationID-1].end(); ++iter)
         {
