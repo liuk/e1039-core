@@ -58,7 +58,8 @@ namespace
 
 SQVertexing::SQVertexing(const std::string& name, int sign1, int sign2):
   SubsysReco(name),
-  legacyContainer(false),
+  legacyContainer_in(false),
+  legacyContainer_out(false),
   enableSingleRetracking(false),
   gfield(nullptr),
   geom_file_name(""),
@@ -97,14 +98,15 @@ int SQVertexing::InitRun(PHCompositeNode* topNode)
 
 int SQVertexing::process_event(PHCompositeNode* topNode)
 {
-  if(legacyContainer) recEvent->clearDimuons();
+  if(legacyContainer_out) recEvent->clearDimuons();
 
   std::vector<int> trackIDs1;
   std::vector<int> trackIDs2;
-  int nTracks = legacyContainer ? recEvent->getNTracks() : recTrackVec->size();
+  int nTracks = legacyContainer_in ? recEvent->getNTracks() : recTrackVec->size();
+  if(Verbosity() > 10) std::cout << "SQVertexing::process_event():  nTracks = " << nTracks << std::endl;
   for(int i = 0; i < nTracks; ++i)
   {
-    SRecTrack* recTrack = legacyContainer ? &(recEvent->getTrack(i)) : dynamic_cast<SRecTrack*>(recTrackVec->at(i));
+    SRecTrack* recTrack = legacyContainer_in ? &(recEvent->getTrack(i)) : dynamic_cast<SRecTrack*>(recTrackVec->at(i));
     if(!recTrack->isKalmanFitted()) continue;
 
     if(enableSingleRetracking)
@@ -124,7 +126,8 @@ int SQVertexing::process_event(PHCompositeNode* topNode)
    
   }
   if(trackIDs1.empty() || trackIDs2.empty()) return Fun4AllReturnCodes::EVENT_OK;
-
+  if(Verbosity() > 10) std::cout << "  N of trackIDs1 & trackIDs1 = " << trackIDs1.size() << " & " << trackIDs2.size() << std::endl;
+  
   for(int i = 0; i < trackIDs1.size(); ++i)
   {
     for(int j = charge1 == charge2 ? i+1 : 0; j < trackIDs2.size(); ++j)
@@ -132,8 +135,8 @@ int SQVertexing::process_event(PHCompositeNode* topNode)
       //A protection, probably not really needed
       if(trackIDs1[i] == trackIDs2[j]) continue;
 
-      SRecTrack* recTrack1 = legacyContainer ? &(recEvent->getTrack(trackIDs1[i])) : dynamic_cast<SRecTrack*>(recTrackVec->at(trackIDs1[i]));
-      SRecTrack* recTrack2 = legacyContainer ? &(recEvent->getTrack(trackIDs2[j])) : dynamic_cast<SRecTrack*>(recTrackVec->at(trackIDs2[j]));
+      SRecTrack* recTrack1 = legacyContainer_in ? &(recEvent->getTrack(trackIDs1[i])) : dynamic_cast<SRecTrack*>(recTrackVec->at(trackIDs1[i]));
+      SRecTrack* recTrack2 = legacyContainer_in ? &(recEvent->getTrack(trackIDs2[j])) : dynamic_cast<SRecTrack*>(recTrackVec->at(trackIDs2[j]));
 
       SRecDimuon recDimuon;
       if(processOneDimuon(recTrack1, recTrack2, recDimuon))
@@ -142,7 +145,7 @@ int SQVertexing::process_event(PHCompositeNode* topNode)
         recDimuon.set_track_id_pos(trackIDs1[i]);
         recDimuon.set_track_id_neg(trackIDs2[j]);
 
-        if(legacyContainer)
+        if(legacyContainer_out)
           recEvent->insertDimuon(recDimuon);
         else
           recDimuonVec->push_back(&recDimuon);
@@ -160,19 +163,23 @@ int SQVertexing::End(PHCompositeNode* topNode)
 
 int SQVertexing::GetNodes(PHCompositeNode* topNode)
 {
-  if(legacyContainer)
+  if(legacyContainer_in || legacyContainer_out)
   {
     recEvent = findNode::getClass<SRecEvent>(topNode, "SRecEvent");
+    if(!recEvent)
+    {
+      std::cerr << Name() << ": failed finding SRecEvent node, abort." << std::endl;
+      return Fun4AllReturnCodes::ABORTRUN;
+    }
   }
   else
   {
     recTrackVec = findNode::getClass<SQTrackVector>(topNode, "SQRecTrackVector");
-  }
-
-  if((!recEvent) && (!recTrackVec))
-  {
-    std::cerr << Name() << ": failed finding rec track info, abort." << std::endl;
-    return Fun4AllReturnCodes::ABORTRUN;
+    if(!recTrackVec)
+    {
+      std::cerr << Name() << ": failed finding SQRecTrackVector node, abort." << std::endl;
+      return Fun4AllReturnCodes::ABORTRUN;
+    }
   }
 
   return Fun4AllReturnCodes::EVENT_OK;
@@ -180,7 +187,7 @@ int SQVertexing::GetNodes(PHCompositeNode* topNode)
 
 int SQVertexing::MakeNodes(PHCompositeNode* topNode)
 {
-  if(!legacyContainer)
+  if(!legacyContainer_out)
   {
     PHNodeIterator iter(topNode);
     PHCompositeNode* dstNode = static_cast<PHCompositeNode*>(iter.findFirst("PHCompositeNode", "DST"));
@@ -205,11 +212,14 @@ double SQVertexing::swimTrackToVertex(SQGenFit::GFTrack& track, double z, TVecto
 
 double SQVertexing::refitTrkToVtx(SQGenFit::GFTrack& track, double z, TVector3* pos, TVector3* mom)
 {
+  if(Verbosity() > 20) std::cout << "SQVertexing::refitTrkToVtx(): z = " << z << ", pos = (" << pos->X() << ", " << pos->Y() << ", " << pos->Z() << "), mom = (" << mom->X() << ", " << mom->Y() << ", " << mom->Z() << ")" << std::endl;
   gfield->setOffset(0.);
 
   double z_offset_prev = 1.E9;
   double z_offset_curr = 0.;
   double chi2 = 0.;
+  const int n_iter_max = 100;
+  int n_iter = 0;
   while(fabs(z_offset_curr - z_offset_prev) > 0.1)
   {
     chi2 = swimTrackToVertex(track, z, pos, mom);
@@ -219,8 +229,14 @@ double SQVertexing::refitTrkToVtx(SQGenFit::GFTrack& track, double z, TVector3* 
     z_offset_curr = calcZsclp(mom->Mag());
   
     gfield->setOffset(-z_offset_curr);
+    if(Verbosity() > 20) std::cout << "  i_iter = " << n_iter << ": p = " << mom->Mag() << ", dz = " << z_offset_curr << " - " << z_offset_prev << " = " << z_offset_curr - z_offset_prev << std::endl;
+    if (++n_iter == n_iter_max) {
+      std::cout << "!WARNING!  SQVertexing::refitTrkToVtx():  Give up the iteration." << std::endl;
+      break;
+    }
   }
-
+  if(Verbosity() > 10) std::cout << "  n_iter = " << n_iter << std::endl;
+  
   //re-adjust FMag bend plane here
   gfield->setOffset(0.);
 
@@ -235,11 +251,16 @@ double SQVertexing::refitTrkToVtx(SRecTrack* track, double z, TVector3* pos, TVe
 
 double SQVertexing::calcZsclp(double p)
 {
+  if(p < 5.) p = 5.;
+  else if(p > 120.) p = 120.;
+  
   return 301.84 - 1.27137*p + 0.0218294*p*p - 0.000170711*p*p*p + 4.94683e-07*p*p*p*p - 271.;
 }
 
 bool SQVertexing::processOneDimuon(SRecTrack* track1, SRecTrack* track2, SRecDimuon& dimuon)
 {
+  if(Verbosity() > 10) std::cout << "  SQVertexing::processOneDimuon(): " << std::endl;
+  
   //Pre-calculated variables
   dimuon.proj_target_pos = track1->getTargetPos();
   dimuon.proj_dump_pos   = track1->getDumpPos();
@@ -281,7 +302,14 @@ bool SQVertexing::processOneDimuon(SRecTrack* track1, SRecTrack* track2, SRecDim
   swimTrackToVertex(gtrk2, Z_DUMP, &pos, &mom);
   dimuon.p_neg_dump.SetVectM(mom, M_MU);
   
-  dimuon.calcVariables();
+  //Flip the sign of Px of 'positive' muon if processing like-sign muons
+  if(charge1 == charge2)
+  {
+    dimuon.p_pos.SetPx(-dimuon.p_pos.Px());
+    dimuon.p_pos_target.SetPx(-dimuon.p_pos_target.Px());
+    dimuon.p_pos_dump.SetPx(-dimuon.p_pos_dump.Px());
+  }
+
   return true;
 }
 
@@ -290,14 +318,14 @@ double SQVertexing::findDimuonZVertex(SRecDimuon& dimuon, SQGenFit::GFTrack& tra
   //TODO: consider using addjustable bend-plane for vertex finding as well
   double stepsize[3] = {25., 5., 1.};
 
-  double z_min = 200.;
+  double z_min = 300.;
   double chi2_min = 1.E9;
   for(int i = 0; i < 3; ++i)
   {
     double z_start, z_end;
     if(i == 0)
     {
-      z_start = 200.;
+      z_start = z_min;
       z_end   = Z_UPSTREAM;
     }
     else
